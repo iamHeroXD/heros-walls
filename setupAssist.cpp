@@ -415,3 +415,401 @@ const char* failPageE_html = R"~(
   </body>
 </html>
 )~";
+
+const char* heroDashboard_html = R"~(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hero's Walls - DNS Ad Blocker</title>
+  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">🛡️</text></svg>'>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: rgba(22, 30, 49, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --accent: #10b981;
+      --danger: #ef4444;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body {
+      background: radial-gradient(circle at top, #1e293b 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 850px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #60a5fa, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      font-weight: 600;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge.off {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+    .badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .card-title {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .stat-val {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #fff;
+    }
+    .stat-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    /* Switch Style */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+    }
+    .switch-label {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .toggle {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 32px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #374151;
+      transition: .3s;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 24px;
+      width: 24px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--accent); }
+    input:checked + .slider:before { transform: translateX(28px); }
+
+    /* Inputs and Buttons */
+    .input-box {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 12px 16px;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.95rem;
+      margin-top: 8px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .input-box:focus { border-color: var(--primary); }
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      margin-top: 10px;
+      width: 100%;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+    .btn.danger { background: var(--danger); }
+    .btn.secondary { background: rgba(255, 255, 255, 0.1); color: var(--text); }
+    .btn.secondary:hover { background: rgba(255, 255, 255, 0.2); }
+    
+    .status-msg {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      min-height: 1.2rem;
+    }
+    .nav-links {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <span>🛡️</span>
+        <span>Hero's Walls</span>
+      </div>
+      <div id="statusBadge" class="badge">
+        <span class="dot"></span>
+        <span id="statusText">Active & Protecting</span>
+      </div>
+    </div>
+
+    <!-- On/Off Control -->
+    <div class="card">
+      <div class="toggle-row">
+        <div>
+          <div class="switch-label">Ad & Tracker Sinkhole</div>
+          <div class="stat-sub">Blocks ads, tracking scripts & telemetry across home Wi-Fi</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="adblockToggle" checked onchange="toggleAdblock(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Stats Matrix -->
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">Ads Blocked</div>
+        <div id="statBlocked" class="stat-val">0</div>
+        <div class="stat-sub">Sinkholed to 0.0.0.0</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Allowed Queries</div>
+        <div id="statAllowed" class="stat-val">0</div>
+        <div class="stat-sub">Forwarded upstream</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Active Filter Vault</div>
+        <div id="statDomains" class="stat-val">Core + YouTube</div>
+        <div class="stat-sub">Telemetry, In-App Ads & Trackers</div>
+      </div>
+    </div>
+
+    <!-- Wi-Fi Auto-Remember & Setup Card -->
+    <div class="card">
+      <div class="card-title">Home Wi-Fi Manager</div>
+      <p class="stat-sub" style="margin-bottom: 12px;">The device auto-connects to saved networks (e.g. your home Wi-Fi). If you move it to another location or change routers, save the new Wi-Fi credentials below:</p>
+      <input type="text" id="wifiSsid" class="input-box" placeholder="Network SSID (e.g. MyHomeWiFi)">
+      <input type="password" id="wifiPass" class="input-box" placeholder="Wi-Fi Password">
+      <button class="btn" onclick="saveWifiCredentials()">Save & Connect</button>
+      <div id="wifiMsg" class="status-msg"></div>
+    </div>
+
+    <!-- Custom Domain Blocker Card -->
+    <div class="card">
+      <div class="card-title">Custom Domain Filter</div>
+      <p class="stat-sub" style="margin-bottom: 12px;">Add specific ad or tracker domains to block immediately:</p>
+      <input type="text" id="customDomain" class="input-box" placeholder="e.g. ads.example.com">
+      <div style="display: flex; gap: 10px;">
+        <button class="btn" onclick="addCustomDomain()">Block Domain</button>
+        <button class="btn secondary" onclick="delCustomDomain()">Unblock Domain</button>
+      </div>
+      <div id="customMsg" class="status-msg"></div>
+    </div>
+
+    <!-- Advanced System Actions -->
+    <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <div style="font-weight: 600;">System Controls</div>
+        <div class="stat-sub">Reboot device or view diagnostics</div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn secondary" style="width: auto; margin-top: 0;" onclick="location.href='/web?AdBlocker.htm'">Classic Console</button>
+        <button class="btn danger" style="width: auto; margin-top: 0;" onclick="rebootEsp()">Reboot ESP32</button>
+      </div>
+    </div>
+
+    <div class="nav-links">
+      <a href="/web?AdBlocker.htm">Full Configuration</a> &bull;
+      <a href="/control?displayLog=1" target="_blank">View Live Logs</a> &bull;
+      <a href="/web?OTA.htm">Firmware OTA</a>
+    </div>
+  </div>
+
+  <script>
+    function updateStats() {
+      fetch('/status')
+        .then(r => r.json())
+        .then(d => {
+          if (d.blockCnt !== undefined) document.getElementById('statBlocked').innerText = d.blockCnt;
+          if (d.allowCnt !== undefined) document.getElementById('statAllowed').innerText = d.allowCnt;
+          if (d.zzzAdblockOn !== undefined) {
+            const on = d.zzzAdblockOn == "1" || d.zzzAdblockOn == true;
+            document.getElementById('adblockToggle').checked = on;
+            const badge = document.getElementById('statusBadge');
+            const txt = document.getElementById('statusText');
+            if (on) {
+              badge.className = 'badge';
+              txt.innerText = 'Active & Protecting';
+            } else {
+              badge.className = 'badge off';
+              txt.innerText = 'Protection Paused';
+            }
+          }
+        })
+        .catch(e => console.error(e));
+    }
+
+    function toggleAdblock(enabled) {
+      const val = enabled ? "1" : "0";
+      fetch('/control?zzzAdblockOn=' + val)
+        .then(() => {
+          updateStats();
+        });
+    }
+
+    function saveWifiCredentials() {
+      const ssid = document.getElementById('wifiSsid').value.trim();
+      const pass = document.getElementById('wifiPass').value.trim();
+      const msg = document.getElementById('wifiMsg');
+      if (!ssid) {
+        msg.style.color = 'var(--danger)';
+        msg.innerText = 'Please enter an SSID';
+        return;
+      }
+      msg.style.color = '#60a5fa';
+      msg.innerText = 'Saving credentials and restarting ESP32...';
+      fetch('/control?ST_SSID=' + encodeURIComponent(ssid))
+        .then(() => fetch('/control?ST_Pass=' + encodeURIComponent(pass)))
+        .then(() => fetch('/control?save=1'))
+        .then(() => fetch('/control?reset=1'))
+        .then(() => {
+          msg.innerText = 'Rebooting! Reconnect your device to ' + ssid + ' once online.';
+        })
+        .catch(() => {
+          msg.style.color = 'var(--danger)';
+          msg.innerText = 'Request sent. Device is rebooting.';
+        });
+    }
+
+    function addCustomDomain() {
+      const d = document.getElementById('customDomain').value.trim();
+      const msg = document.getElementById('customMsg');
+      if (!d) return;
+      msg.style.color = '#60a5fa';
+      msg.innerText = 'Adding ' + d + '...';
+      fetch('/control?uLoad=' + encodeURIComponent(d))
+        .then(() => {
+          msg.style.color = 'var(--accent)';
+          msg.innerText = d + ' is now blocked!';
+          document.getElementById('customDomain').value = '';
+          updateStats();
+        })
+        .catch(e => {
+          msg.style.color = 'var(--danger)';
+          msg.innerText = 'Failed to add domain';
+        });
+    }
+
+    function delCustomDomain() {
+      const d = document.getElementById('customDomain').value.trim();
+      const msg = document.getElementById('customMsg');
+      if (!d) return;
+      msg.style.color = '#60a5fa';
+      msg.innerText = 'Removing ' + d + '...';
+      fetch('/control?vLoad=' + encodeURIComponent(d))
+        .then(() => {
+          msg.style.color = 'var(--accent)';
+          msg.innerText = d + ' was removed from blocklist.';
+          document.getElementById('customDomain').value = '';
+          updateStats();
+        });
+    }
+
+    function rebootEsp() {
+      if (confirm('Reboot Hero\'s Walls ESP32 device?')) {
+        fetch('/control?reset=1');
+        alert('Device rebooting. Please wait 10 seconds.');
+      }
+    }
+
+    setInterval(updateStats, 3000);
+    window.onload = updateStats;
+  </script>
+</body>
+</html>
+)~";
+

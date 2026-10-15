@@ -1,0 +1,18 @@
+{
+  "device_ip": "192.168.1.50",
+  "total_queries": 400,
+  "duration_sec": 3.481,
+  "qps": 114.9,
+  "latency_min_ms": 4.553,
+  "latency_p50_ms": 6.618,
+  "latency_p95_ms": 14.417,
+  "latency_p99_ms": 20.047,
+  "latency_avg_ms": 8.441,
+  "latency_max_ms": 319.343,
+  "cache_miss_ms": 5.922,
+  "cache_hit_avg_ms": 37.354,
+  "cache_speedup_x": 0.16,
+  "zero_false_positives": true,
+  "blocklist_pass": true,
+  "verified_at": "2026-10-15 01:11:18 UTC"
+}

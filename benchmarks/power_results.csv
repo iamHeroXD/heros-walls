@@ -1,0 +1,5 @@
+test_condition,supply_voltage_v,measured_current_ma,power_watts,measurement_method,instrument_used,status
+idle_modem_sleep_on,5.00,25.0,0.125,datasheet_dtim3_curve,none,ESTIMATED
+filtering_burst_114qps,5.00,95.0,0.475,soc_model_calculation,none,UNVERIFIED
+peak_rf_transmit_15dbm,5.00,240.0,1.200,espressif_ds_table,none,ESTIMATED
+precision_shunt_measurement,5.00,0.0,0.000,calibrated_multimeter,none,NOT_TESTED

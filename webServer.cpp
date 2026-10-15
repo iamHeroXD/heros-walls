@@ -4,7 +4,7 @@
 
 #include "appGlobals.h"
 
-#define MAX_HANDLERS 12
+#define MAX_HANDLERS 16
 
 char inFileName[IN_FILE_NAME_LEN];
 static char variable[FILE_NAME_LEN]; 
@@ -132,29 +132,18 @@ bool isPathTraversal(const char* path) {
          !strcmp(path, "..");
 }
 
+extern const char* heroDashboard_html;
+
 static esp_err_t indexHandler(httpd_req_t* req) {
-  strcpy(inFileName, INDEX_PAGE_PATH);
-  if (isPathTraversal(inFileName)) {
-    LOG_WRN("Path traversal attempt detected in index: %s", inFileName);
-    httpd_resp_send_404(req);
-    return ESP_FAIL;
-  }  // first check if a startup failure needs to be reported
-  if (startupFailure[0]) {
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_sendstr_chunk(req, failPageS_html);
-    httpd_resp_sendstr_chunk(req, startupFailure);
-    httpd_resp_sendstr_chunk(req, failPageE_html);
-    httpd_resp_sendstr_chunk(req, NULL);
-    return ESP_OK;
-  } 
-  // Show wifi wizard if not setup, using access point mode
-  if (!STORAGE.exists(INDEX_PAGE_PATH) && WiFi.status() != WL_CONNECTED) {
-    // Open a basic wifi setup page
+  // Show wifi wizard if not connected to STA and in AP mode
+  if (WiFi.status() != WL_CONNECTED && strlen(ST_SSID) == 0) {
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_sendstr(req, setupPage_html);
-  } else if (!checkAuth(req)) return ESP_OK; // check if authentication required & passed
+  } else if (!checkAuth(req)) return ESP_OK;
 
-  return fileHandler(req);
+  // Serve Hero's Walls dashboard directly
+  httpd_resp_set_type(req, "text/html");
+  return httpd_resp_sendstr(req, heroDashboard_html);
 }
 
 esp_err_t extractHeaderVal(httpd_req_t *req, const char* variable, char* value, size_t valueSize) {
@@ -684,8 +673,11 @@ bool startWebServer() {
   httpd_uri_t sustainUri = {.uri = "/sustain", .method = HTTP_GET, .handler = appSpecificSustainHandler, .user_ctx = NULL};
   httpd_uri_t checkUri = {.uri = "/sustain", .method = HTTP_HEAD, .handler = appSpecificSustainHandler, .user_ctx = NULL};
 
+  httpd_uri_t heroUri = {.uri = "/hero", .method = HTTP_GET, .handler = indexHandler, .user_ctx = NULL};
+
   if (res == ESP_OK) {
     httpd_register_uri_handler(httpServer, &indexUri);
+    httpd_register_uri_handler(httpServer, &heroUri);
     httpd_register_uri_handler(httpServer, &webUri);
     httpd_register_uri_handler(httpServer, &controlUri);
     httpd_register_uri_handler(httpServer, &updateUri);

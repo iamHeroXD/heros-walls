@@ -1,0 +1,40 @@
+# Build & Compiler Artefacts
+*.bin
+*.elf
+*.hex
+*.map
+build/
+.pio/
+.arduino15/
+
+# Device Configuration & Private Runtime Files
+data/configs.txt
+data/custom.txt
+data/snapshot.bin
+data/log.txt
+data/CA.pem
+*.local.txt
+
+# Editor & OS Files
+.vscode/
+.idea/
+*.swp
+*.bak
+*~
+Thumbs.db
+.DS_Store
+
+# Benchmark logs & temporary runs
+*.log
+scratch/
+
+# Local private session reports
+BUILD_REPORT.md
+CHANGES.md
+HARDWARE_REPORT.md
+NETWORK_SETUP.md
+README_LOCAL_SETUP.md
+RECOVERY.md
+REPORT.md
+TEST_REPORT.md
+

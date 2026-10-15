@@ -6,8 +6,8 @@
 #pragma once
 #include "globals.h"
 
-#if CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S2
-#error "App not compatible with ESP32 C3 or S2 model"
+#if CONFIG_IDF_TARGET_ESP32S2
+#error "App not compatible with ESP32 S2 model"
 #endif
 
 #define ALLOW_SPACES false // set true to allow whitespace in configs.txt key values
@@ -26,8 +26,13 @@
 #define DOT_MAX 50
 #define HOSTNAME_GRP 0
 #define USE_IP6 false
+#if CONFIG_IDF_TARGET_ESP32C3
+#define NEED_PSRAM false
+#define MIN_PSRAM 0
+#else
 #define NEED_PSRAM true
 #define MIN_PSRAM 4
+#endif
 
 #define APP_NAME "ESP32_AdBlocker" // max 15 chars
 #define APP_VER "3.7"

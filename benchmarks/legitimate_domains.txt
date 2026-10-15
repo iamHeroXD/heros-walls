@@ -1,0 +1,97 @@
+# Hero's Walls V2 — False-Positive Verification Corpus
+# This file contains high-traffic domains across enterprise, media, cloud,
+# education, and edge-case synthetic domains that must NEVER be falsely sinkholed.
+
+# Search, Cloud & Major Infrastructure
+google.com
+www.google.com
+youtube.com
+www.youtube.com
+m.youtube.com
+i.ytimg.com
+yt3.ggpht.com
+github.com
+raw.githubusercontent.com
+githubassets.com
+microsoft.com
+apple.com
+icloud.com
+amazon.com
+aws.amazon.com
+cloudflare.com
+mozilla.org
+wikipedia.org
+wikimedia.org
+bing.com
+yahoo.com
+duckduckgo.com
+
+# Media, Streaming & Social
+netflix.com
+spotify.com
+linkedin.com
+twitter.com
+x.com
+instagram.com
+whatsapp.com
+facebook.com
+reddit.com
+stackoverflow.com
+twitch.tv
+disneyplus.com
+bbc.com
+nytimes.com
+cnn.com
+medium.com
+vimeo.com
+quora.com
+
+# Commerce, Finance & Payment
+paypal.com
+stripe.com
+chase.com
+bankofamerica.com
+wellsfargo.com
+ebay.com
+shopify.com
+walmart.com
+
+# Developer Tools, Hosting & CDNs
+gitlab.com
+bitbucket.org
+docker.com
+npmjs.com
+pypi.org
+debian.org
+ubuntu.com
+kernel.org
+archlinux.org
+fastly.net
+akamai.com
+
+# Captive Portal & Network Health Endpoints
+connectivitycheck.gstatic.com
+clients3.google.com
+msftconnecttest.com
+captive.apple.com
+detectportal.firefox.com
+time.windows.com
+time.google.com
+pool.ntp.org
+one.one.one.one
+dns.google
+
+# Edge-Case Vocabulary & Substring Collision Tests (Must NOT match naive patterns)
+notdoubleclick.net
+mytelemetryapp.com
+cloudtelemetry.org
+telemetryhub.io
+analytics-portal.net
+simplemetrics.org
+bankanalytics.com
+ad-security-research.org
+doubleclick-case-study.com
+adsystem-engineering.org
+admob-developer-docs.com
+flurry-weather-forecast.com
+criteo-financial-reports.com

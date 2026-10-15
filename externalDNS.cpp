@@ -170,8 +170,9 @@ static void dnsTask(void *parameter) {
     clilen = sizeof(cli);
     int len = recvfrom(dnsSock, rxbuf, sizeof(rxbuf), 0, (struct sockaddr *)&cli, &clilen);
     if (len < (int)sizeof(dns_header_t)) continue;
+    LOG_VRB("DNS query recvd from %s:%d (len %d)", inet_ntoa(cli.sin_addr), ntohs(cli.sin_port), len);
     int txLen = processDNSquery(rxbuf, len, txbuf, sizeof(txbuf));
-    LOG_VRB("DNS q=%dB r=%dB", len, txLen > 0 ? txLen : 0);   // If you want to Diable DNS Result Log Disable this Line
+    LOG_VRB("DNS query processed -> reply len %d", txLen);
     if (txLen > 0) sendto(dnsSock, txbuf, txLen, 0, (struct sockaddr *)&cli, clilen);
   }
 }
@@ -194,7 +195,7 @@ void prepDNS() {
     close(dnsSock); dnsSock = -1;
     return;
   }
-  if (xTaskCreatePinnedToCore(dnsTask, "dnsTask", 4096, NULL, 3, NULL, 1) != pdPASS) {
+  if (xTaskCreate(dnsTask, "dnsTask", 4096, NULL, 3, NULL) != pdPASS) {
     snprintf(startupFailure, SF_LEN, STARTUP_FAIL "DNS worker not started");
     LOG_WRN("%s", startupFailure);
     close(dnsSock); dnsSock = -1;
@@ -254,9 +255,11 @@ static DnsResult queryUpstream(const char* host, uint16_t qtype,
                                uint8_t* rdata, size_t rcap, size_t* rlen) {
   *rlen = 0;
   const uint8_t wantLen = (qtype == 28) ? 16 : 4;
-  const char* servers[] = {ST_ns1, ST_ns2};
+  const char* servers[] = {
+    strlen(ST_ns1) ? ST_ns1 : "1.1.1.1",
+    strlen(ST_ns2) ? ST_ns2 : "8.8.8.8"
+  };
   for (int s = 0; s < 2; s++) {
-    if (!servers[s][0]) continue;
     IPAddress srv;
     if (!srv.fromString(servers[s])) continue;
 

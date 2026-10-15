@@ -172,13 +172,178 @@ static bool updateCustomFile(char* domainName, bool doDelete) {
   return false;
 }
 
-DnsResult checkBlocklist(const char* domainName, IPAddress& retIP) {
-  // called from externalDNS.cpp
-  // normalise the query, test blocklist, return response type + answer IP
-  // normalize: strip single trailing root dot, force lowercase
-  // (DNS names are case-insensitive; blocklist storage is lowercase)
+// Suffix matching helper with strict label boundaries
+static inline bool matchDomainSuffix(const char* domain, const char* rule) {
+  size_t dlen = strlen(domain);
+  size_t rlen = strlen(rule);
+  if (dlen == rlen) {
+    return (strcmp(domain, rule) == 0);
+  }
+  if (dlen > rlen) {
+    if (domain[dlen - rlen - 1] == '.' && strcmp(domain + dlen - rlen, rule) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
 
-  // use IN_FILE_NAME_LEN (128) so names up to maxDomLen (100) + dot fit
+// User Allowlist (Custom unblocks take priority over all blocklists and patterns)
+#define MAX_ALLOW_DOMAINS 64
+static char userAllowlist[MAX_ALLOW_DOMAINS][IN_FILE_NAME_LEN];
+static size_t userAllowCount = 0;
+
+static bool isUserAllowlisted(const char* domain) {
+  for (size_t i = 0; i < userAllowCount; i++) {
+    if (userAllowlist[i][0] && matchDomainSuffix(domain, userAllowlist[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void addUserAllowlist(const char* domain) {
+  for (size_t i = 0; i < userAllowCount; i++) {
+    if (!strcmp(userAllowlist[i], domain)) return;
+  }
+  if (userAllowCount < MAX_ALLOW_DOMAINS) {
+    strncpy(userAllowlist[userAllowCount], domain, IN_FILE_NAME_LEN - 1);
+    userAllowlist[userAllowCount][IN_FILE_NAME_LEN - 1] = 0;
+    userAllowCount++;
+    LOG_ALT("Domain '%s' added to user allowlist (%u active)", domain, (unsigned)userAllowCount);
+  } else {
+    LOG_WRN("User allowlist full (%d max)", MAX_ALLOW_DOMAINS);
+  }
+}
+
+static void removeUserAllowlist(const char* domain) {
+  for (size_t i = 0; i < userAllowCount; i++) {
+    if (!strcmp(userAllowlist[i], domain)) {
+      for (size_t j = i; j + 1 < userAllowCount; j++) {
+        strcpy(userAllowlist[j], userAllowlist[j + 1]);
+      }
+      userAllowCount--;
+      userAllowlist[userAllowCount][0] = 0;
+      LOG_ALT("Domain '%s' removed from user allowlist", domain);
+      return;
+    }
+  }
+}
+
+// Static System Allowlist (Critical infrastructure, captive portal probes, NTP, root services)
+static const char* const SYSTEM_ALLOWLIST_EXACT[] = {
+  "localhost",
+  "google.com",
+  "youtube.com",
+  "www.youtube.com",
+  "m.youtube.com",
+  "i.ytimg.com",
+  "yt3.ggpht.com",
+  "github.com",
+  "raw.githubusercontent.com",
+  "githubassets.com",
+  "wikipedia.org",
+  "apple.com",
+  "icloud.com",
+  "microsoft.com"
+};
+
+static const char* const SYSTEM_ALLOWLIST_INFRA[] = {
+  "connectivitycheck.gstatic.com",
+  "clients3.google.com",
+  "msftconnecttest.com",
+  "ipv6.msftconnecttest.com",
+  "captive.apple.com",
+  "detectportal.firefox.com",
+  "time.windows.com",
+  "time.google.com",
+  "pool.ntp.org",
+  "dns.google",
+  "one.one.one.one"
+};
+
+static bool isSystemAllowlisted(const char* domain) {
+  for (size_t i = 0; i < sizeof(SYSTEM_ALLOWLIST_EXACT)/sizeof(SYSTEM_ALLOWLIST_EXACT[0]); i++) {
+    if (!strcmp(domain, SYSTEM_ALLOWLIST_EXACT[i])) return true;
+  }
+  for (size_t i = 0; i < sizeof(SYSTEM_ALLOWLIST_INFRA)/sizeof(SYSTEM_ALLOWLIST_INFRA[0]); i++) {
+    if (matchDomainSuffix(domain, SYSTEM_ALLOWLIST_INFRA[i])) return true;
+  }
+  return false;
+}
+
+// Curated high-signal ad, tracker, and telemetry domain patterns (strict label boundary matching)
+static const char* const AD_PATTERNS[] = {
+  "doubleclick.net",
+  "googleadservices.com",
+  "googlesyndication.com",
+  "adservice.google.com",
+  "pagead2.googlesyndication.com",
+  "adnxs.com",
+  "adsystem.com",
+  "scorecardresearch.com",
+  "admob.com",
+  "criteo.com",
+  "criteo.net",
+  "rubiconproject.com",
+  "pubmatic.com",
+  "openx.net",
+  "casalemedia.com",
+  "taboola.com",
+  "outbrain.com",
+  "adroll.com",
+  "quantserve.com",
+  "advertising.com",
+  "moatads.com",
+  "popads.net",
+  "propellerads.com",
+  "zedo.com",
+  "unityads.unity3d.com",
+  "applovin.com",
+  "vungle.com",
+  "ironsrc.com",
+  "adcolony.com",
+  "flurry.com",
+  "crashlytics.com",
+  "branch.io",
+  "adjust.com",
+  "appsflyer.com",
+  "kochava.com",
+  "inmobi.com",
+  "ad-delivery.net",
+  "amplitude.com",
+  "mixpanel.com",
+  "google-analytics.com",
+  "ssl.google-analytics.com",
+  "video-stats.l.google.com",
+  "s.youtube.com",
+  "ad.youtube.com",
+  "ads.youtube.com"
+};
+
+static bool matchesAdPattern(const char* domain) {
+  for (size_t i = 0; i < sizeof(AD_PATTERNS)/sizeof(AD_PATTERNS[0]); i++) {
+    if (matchDomainSuffix(domain, AD_PATTERNS[i])) return true;
+  }
+  return false;
+}
+
+// Label-walking binary search: checks "sub.ad.doubleclick.net", then "ad.doubleclick.net", then "doubleclick.net"
+static bool searchDomainOrSubdomains(const char* domain) {
+  if (!itemsLoaded || !storage) return false;
+  if (binarySearch(domain, false)) return true;
+
+  const char* p = domain;
+  while ((p = strchr(p, '.')) != nullptr) {
+    p++;
+    if (strchr(p, '.') != nullptr) {
+      if (binarySearch(p, false)) return true;
+    }
+  }
+  return false;
+}
+
+DnsResult checkBlocklist(const char* domainName, IPAddress& retIP) {
+  // normalise query, test allowlist first, then blocklist, return response type + answer IP
   char normName[IN_FILE_NAME_LEN];
   size_t n = strlen(domainName);
   if (n == 0 || n >= IN_FILE_NAME_LEN) {
@@ -186,35 +351,55 @@ DnsResult checkBlocklist(const char* domainName, IPAddress& retIP) {
     return DNS_SERVFAIL;
   }
 
-  if (domainName[n - 1] == '.') n--; // tolerate "example.com."
+  if (domainName[n - 1] == '.') n--; // tolerate trailing dot
   for (size_t i = 0; i < n; i++)
     normName[i] = (char)tolower((unsigned char)domainName[i]);
   normName[n] = 0;
 
-  // RFC 6761: localhost is always loopback, never blocklisted
-  if (!strcmp(normName, "localhost")) {
-    retIP = IPAddress(127, 0, 0, 1);
+  // 1. Allowlist precedence: check user allowlist and system allowlist first
+  if (isUserAllowlisted(normName) || isSystemAllowlisted(normName)) {
+    if (!strcmp(normName, "localhost")) {
+      retIP = IPAddress(127, 0, 0, 1);
+      ++allowCnt;
+      LOG_VRB("%s -> loopback (fixed)", normName);
+      return DNS_RESOLVED;
+    }
     ++allowCnt;
-    LOG_VRB("%s -> loopback (fixed)", normName);
-    return DNS_RESOLVED;
+    LOG_VRB("%s -> Allowlisted (bypassing adblock)", normName);
+    return resolveDomainStatus(normName, retIP);
   }
 
+  // 2. Ad blocking engine
   bool blocked = false;
   if (adBlockOn) {
     static char blockedDomain[IN_FILE_NAME_LEN] = {0};
     uint64_t usElapsed = micros();
-    // check if received domain name same as previous blocked domain to skip search
-    blocked = !strcmp(normName, blockedDomain) ? true : (bool)binarySearch(normName, false);
+
+    // Cache hit on last blocked domain (sub-microsecond)
+    if (!strcmp(normName, blockedDomain)) {
+      blocked = true;
+    } else {
+      // 2a. High-priority ad & tracker pattern rules (strict label boundary matching)
+      if (matchesAdPattern(normName)) {
+        blocked = true;
+      }
+
+      // 2b. Label-walking binary search in downloaded/custom blocklist storage
+      if (!blocked) {
+        blocked = searchDomainOrSubdomains(normName);
+      }
+    }
+
     if (blocked) strcpy(blockedDomain, normName);
     blocked ? ++blockCnt : ++allowCnt;
     uint64_t checkTime = micros() - usElapsed;
     LOG_VRB("Check %s %s in %lluus", normName, (blocked) ? "*Blocked*" : "Allowed", checkTime);
   }
+
   if (blocked) {
-    retIP = IPAddress(0, 0, 0, 0); // sinkhole only for blocklist hits
+    retIP = IPAddress(0, 0, 0, 0); // sinkhole for blocked domains
     return DNS_BLOCKED;
   }
-  // not in blocklist -> query forwarder, distinguishing NXDOMAIN from SERVFAIL
   return resolveDomainStatus(normName, retIP);
 }
 
@@ -227,25 +412,28 @@ static void checkDomain(const char* inName, bool doUpdate, bool doDelete) {
   if (size_t domLen = formatDomain(domName); domLen > 0) {
     if (domLen >= maxDomLen) LOG_ALT("Domain name %s is too long to process", domName);
     else {
-      uint32_t blPtr = binarySearch(domName, doUpdate);
-      if (doUpdate) { // addition
+      if (doUpdate) { // addition (uLoad)
+        removeUserAllowlist(domName);
+        uint32_t blPtr = binarySearch(domName, true);
         if (blPtr) {
-          // not found, so insert domain if resolves at blPtr location
-          if (resolveDomain(domName) != IPAddress(0, 0, 0, 0)) {
-            // resolved
-            addDomain(blPtr, domName, domLen);
-            if (updateCustomFile(domName, false)) LOG_ALT("Domain name %s IS added to blocklist", domName);
-          } else LOG_ALT("Domain name %s NOT added to blocklist as not resolved", domName);
+          addDomain(blPtr, domName, domLen);
+          if (updateCustomFile(domName, false)) LOG_ALT("Domain name %s IS added to blocklist", domName);
         } else LOG_ALT("Domain name %s NOT added to blocklist as duplicate", domName);
-      } else {
-        // delete or just check
-        if (doDelete) { // deletion
-          if (blPtr) {
-            // found, so delete
-            *(storage + ptrs[blPtr]) = 0; // set domain name empty
-            if (updateCustomFile(domName, true)) LOG_ALT("Domain name %s IS deleted", domName);
-          } else LOG_ALT("Domain name %s NOT deleted as not in blocklist", domName);
-        } else LOG_ALT("Domain name %s %s in blocklist", domName, blPtr ? "IS" : "NOT"); // check only
+      } else if (doDelete) { // deletion / unblock (vLoad)
+        addUserAllowlist(domName);
+        uint32_t blPtr = binarySearch(domName, false);
+        if (blPtr) {
+          *(storage + ptrs[blPtr]) = 0; // blank out in storage
+        }
+        if (updateCustomFile(domName, true)) LOG_ALT("Domain name %s IS allowlisted/unblocked", domName);
+      } else { // check only (wLoad)
+        bool isAllowed = isUserAllowlisted(domName) || isSystemAllowlisted(domName);
+        bool isBlocked = !isAllowed && (matchesAdPattern(domName) || searchDomainOrSubdomains(domName));
+        LOG_ALT("Domain %s status: %s (Allowlisted: %s, Blocklist Hit: %s)",
+                domName,
+                isBlocked ? "BLOCKED" : "ALLOWED",
+                isAllowed ? "YES" : "NO",
+                isBlocked ? "YES" : "NO");
       }
     }
   } else LOG_ALT("No domain name entered");
@@ -424,26 +612,31 @@ static void loadCustom() {
       customLineStr.trim();
       if (customLineStr.length()) {
         if (customLineStr.charAt(0) == '#') {
-          doAdd = false;  // deletion
+          doAdd = false;  // unblock / allowlist
           strcpy(domName, customLineStr.substring(1).c_str());
         } else strcpy(domName, customLineStr.c_str()); // addition
-        uint32_t blPtr = binarySearch(domName, doAdd);
-        if (blPtr) {
-          if (doAdd) {
-            // addition
+        
+        formatDomain(domName);
+        if (doAdd) {
+          removeUserAllowlist(domName);
+          uint32_t blPtr = binarySearch(domName, true);
+          if (blPtr) {
             addDomain(blPtr, domName, strlen(domName));
             customAdded++;
-          } else {
-            // deletion
-            *(storage + ptrs[blPtr]) = 0; // set domain name empty
-            customDeleted++;
           }
-        } else LOG_WRN("Ignored custom %s of %s", doAdd ? "addition" : "deletion", domName);
+        } else {
+          addUserAllowlist(domName);
+          uint32_t blPtr = binarySearch(domName, false);
+          if (blPtr) {
+            *(storage + ptrs[blPtr]) = 0; // blank out in storage
+          }
+          customDeleted++;
+        }
       }
     }
     file.close();
   }
-  LOG_ALT("Loaded %lu custom blocked domains, unblocked %lu domains", customAdded, customDeleted);
+  LOG_ALT("Loaded %lu custom blocked domains, %lu allowlisted/unblocked domains", customAdded, customDeleted);
 }
 
 static void showBlockList(int maxItems = 0) {
@@ -873,6 +1066,7 @@ bool appSetup() {
     LOG_ALT("Enter blocklist URL on web page ...");
     delay(30000); // wait for file URL to be entered
   }
+#if NEED_PSRAM
   ptrs = (uint32_t*)ps_calloc((maxDomains + 2), sizeof(uint32_t)); // for sorted pointers
   storageSize = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) - minMemory;
   if (!ptrs || storageSize < ONEMEG * 4) {
@@ -882,7 +1076,28 @@ bool appSetup() {
   }
   strcpy(fmtStorageSize, fmtSize(storageSize));
   storage = (char*)ps_calloc(storageSize, sizeof(char));
-  if (!storage) {
+#else
+  if (psramFound()) {
+    ptrs = (uint32_t*)ps_calloc((maxDomains + 2), sizeof(uint32_t));
+    storageSize = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) - minMemory;
+    strcpy(fmtStorageSize, fmtSize(storageSize));
+    storage = (char*)ps_calloc(storageSize, sizeof(char));
+  } else {
+    // Internal SRAM fallback for ESP32-C3
+    if (maxDomains > 3000) maxDomains = 3000;
+    ptrs = (uint32_t*)calloc((maxDomains + 2), sizeof(uint32_t));
+    size_t freeInternal = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    // Reserve at least 48KB heap for TLS/Webserver/DNS
+    if (freeInternal > 48 * 1024) {
+      storageSize = freeInternal - 48 * 1024;
+    } else {
+      storageSize = 16 * 1024;
+    }
+    strcpy(fmtStorageSize, fmtSize(storageSize));
+    storage = (char*)calloc(storageSize, sizeof(char));
+  }
+#endif
+  if (!storage || !ptrs) {
     snprintf(startupFailure, SF_LEN, STARTUP_FAIL "Failed to allocate %s domain storage", fmtStorageSize);
     LOG_ERR("%s", startupFailure);
     return false;
@@ -892,13 +1107,11 @@ bool appSetup() {
           fmtStorageSize, (uint32_t)(storageSize / 28), maxDomains);
   resetBlocklistStorage();
   updateConfigVect("blockCnt", "0");
-  updateConfigVect("allowCnt", "0");
-  if (xLedPin) xTaskCreatePinnedToCore(ledTask, "ledTask", 2048, NULL, 1, NULL, 1); // Change Status LED
-  if (!strlen(ST_SSID)) setLedState(LED_AP_MODE);   // setup-needed state ASAP
-  loadBlockList("Initial"); // best effort - DNS starts regardless
-  if (!strlen(ST_SSID)) setLedState(LED_AP_MODE); //Change Status LED
+  if (xLedPin) xTaskCreate(ledTask, "ledTask", 2048, NULL, 1, NULL); // Change Status LED
   prepDNS();
   appSetupDone = true;
+  loadBlockList("Initial"); // best effort - DNS already listening
+  if (!strlen(ST_SSID)) setLedState(LED_AP_MODE); //Change Status LED
   return true;
 }
 
@@ -947,7 +1160,8 @@ bool updateAppStatus(const char* variable, const char* value, bool fromUser) {
   }
   else if (fromUser && !strcmp(variable, "zzCustom")) {
     STORAGE.remove(CUSTOM_FILE_PATH);
-    LOG_ALT("Deleted custom blocklist file");
+    userAllowCount = 0;
+    LOG_ALT("Deleted custom blocklist file and cleared custom allowlist");
   }
   else if (!strcmp(variable, "zzzAdblockOn")) {
     adBlockOn = (bool)intVal;
@@ -997,6 +1211,8 @@ void appSpecificWsHandler(const char* wsMsg) {
 char* buildAppJsonString(bool filter) {
   // build app specific part of json string
   char* p = jsonBuff + 1;
+  p += sprintf(p, "\"blockCnt\":\"%lu\",\"allowCnt\":\"%lu\",\"zzzAdblockOn\":\"%d\",",
+               blockCnt, allowCnt, adBlockOn ? 1 : 0);
   return p;
 }
 

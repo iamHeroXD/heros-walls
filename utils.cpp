@@ -1339,7 +1339,7 @@ bool utilsStartup() {
   STACK_MEM = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
 #endif
   logSetup();
-#ifdef NEED_PSRAM
+#if NEED_PSRAM
   if (psramFound()) {
     if (ESP.getPsramSize() < MIN_PSRAM * ONEMEG) 
       snprintf(startupFailure, SF_LEN, STARTUP_FAIL "App needs at least %dMB PSRAM", MIN_PSRAM);

@@ -1,0 +1,42 @@
+name: Hero's Walls CI
+
+on:
+  push:
+    branches: [ main, heros-walls-v2 ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate Python Benchmark Scripts
+        run: |
+          python -m py_compile benchmarks/run_benchmarks.py
+          python -c "import json, csv; print('Python standard tools valid')"
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v1.1.2
+
+      - name: Install ESP32 Platform Core
+        run: |
+          arduino-cli config init
+          arduino-cli config set board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.1.1
+
+      - name: Compile ESP32-C3 Profile
+        run: |
+          arduino-cli compile --fqbn esp32:esp32:esp32c3:PartitionScheme=min_spiffs,FlashMode=dio,FlashFreq=80,CDCOnBoot=default .
+
+      - name: Compile ESP32-S3 Profile
+        run: |
+          arduino-cli compile --fqbn esp32:esp32:esp32s3:FlashMode=qio,FlashSize=8M,PartitionScheme=default_8MB,PSRAM=opi .

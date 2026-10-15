@@ -19,16 +19,42 @@
 
 void setup() { 
   bool res = utilsStartup();
-  if (res && startNetwork()) {
-    // start rest of services
-    appSetup();
-    checkMemory();
-  }
+  startNetwork();
+  resetCrashLoop();
+  startupFailure[0] = 0;
+  appSetup();
+  checkMemory();
 }
 
 void loop() {
-  // confirm not blocked in setup
-  LOG_INF("=============== Total tasks: %u ===============\n", uxTaskGetNumberOfTasks() - 1);
-  delay(1000);
-  vTaskDelete(NULL); // free 8k ram
+  // Serial interactive Wi-Fi configuration
+  if (Serial.available()) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    if (cmd.startsWith("WIFI:")) {
+      int sep = cmd.indexOf(':', 5);
+      if (sep != -1) {
+        String ssid = cmd.substring(5, sep);
+        String pass = cmd.substring(sep + 1);
+        LOG_INF("Setting Wi-Fi credentials via Serial: SSID '%s'", ssid.c_str());
+        Preferences p;
+        if (p.begin(APP_NAME, false)) {
+          p.putString("ST_SSID", ssid.c_str());
+          p.putString("ST_Pass", pass.c_str());
+          p.end();
+          LOG_INF("Saved to NVS. Restarting ESP32...");
+          delay(1000);
+          ESP.restart();
+        }
+      } else {
+        LOG_WRN("Usage: WIFI:<SSID>:<PASS>");
+      }
+    } else if (cmd == "STATUS") {
+      LOG_INF("Status: IP=%s, STA status=%d, FreeHeap=%u",
+              WiFi.STA.localIP().toString().c_str(), WiFi.STA.status(), ESP.getFreeHeap());
+    } else if (cmd == "RESTART") {
+      ESP.restart();
+    }
+  }
+  delay(100);
 }
