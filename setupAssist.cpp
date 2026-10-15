@@ -422,225 +422,298 @@ const char* heroDashboard_html = R"~(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hero's Walls - DNS Ad Blocker</title>
-  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">🛡️</text></svg>'>
+  <title>Hero's Walls - DNS Filtering Appliance</title>
   <style>
     :root {
-      --bg: #0b0f19;
-      --card-bg: rgba(22, 30, 49, 0.85);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --primary: #3b82f6;
-      --primary-hover: #2563eb;
-      --accent: #10b981;
-      --danger: #ef4444;
-      --text: #f3f4f6;
-      --text-muted: #9ca3af;
-      --radius: 16px;
+      --bg: #09090b;
+      --card-bg: #121215;
+      --card-border: #27272a;
+      --card-border-hover: #3f3f46;
+      --text: #f4f4f5;
+      --text-muted: #71717a;
+      --text-dim: #3f3f46;
+      --accent-red: #dc2626;
+      --accent-red-hover: #b91c1c;
+      --input-bg: #18181b;
+      --radius: 6px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
     body {
-      background: radial-gradient(circle at top, #1e293b 0%, var(--bg) 100%);
+      background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding: 24px 16px;
+      padding: 32px 16px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      -webkit-font-smoothing: antialiased;
     }
     .container {
       width: 100%;
-      max-width: 850px;
+      max-width: 820px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
     }
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 0;
+      padding-bottom: 16px;
       border-bottom: 1px solid var(--card-border);
     }
-    .logo {
+    .brand {
       display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 1.5rem;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      background: linear-gradient(135deg, #60a5fa, #34d399);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: #ffffff;
+      text-transform: uppercase;
+      font-family: var(--mono);
+    }
+    .brand-tag {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-family: var(--mono);
     }
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      font-size: 0.8rem;
-      padding: 6px 14px;
-      border-radius: 999px;
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
+      gap: 8px;
+      font-size: 0.72rem;
+      font-family: var(--mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      background: #18181b;
+      color: #fafafa;
+      border: 1px solid var(--card-border);
       font-weight: 600;
-      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge .indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-red);
     }
     .badge.off {
-      background: rgba(239, 68, 68, 0.15);
-      color: #f87171;
-      border-color: rgba(239, 68, 68, 0.3);
+      color: var(--text-muted);
     }
-    .badge .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: currentColor;
-      box-shadow: 0 0 8px currentColor;
+    .badge.off .indicator {
+      background: #52525b;
     }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 16px;
-    }
+
+    /* Cards */
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--radius);
-      padding: 20px;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-      position: relative;
-      overflow: hidden;
+      padding: 20px 24px;
+      transition: border-color 0.15s ease;
+    }
+    .card:hover {
+      border-color: var(--card-border-hover);
     }
     .card-title {
-      font-size: 0.85rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.08em;
+      font-family: var(--mono);
       margin-bottom: 8px;
+      font-weight: 600;
     }
     .stat-val {
       font-size: 2.2rem;
-      font-weight: 800;
-      color: #fff;
+      font-weight: 600;
+      color: #ffffff;
+      font-family: var(--mono);
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
     }
     .stat-sub {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: var(--text-muted);
-      margin-top: 4px;
+      margin-top: 6px;
+      line-height: 1.4;
     }
-    /* Switch Style */
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+    }
+
+    /* Minimalist Toggle */
     .toggle-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 0;
+      gap: 16px;
     }
-    .switch-label {
-      font-size: 1.1rem;
+    .switch-title {
+      font-size: 0.95rem;
       font-weight: 600;
+      color: #ffffff;
+      letter-spacing: 0.02em;
     }
     .toggle {
       position: relative;
       display: inline-block;
-      width: 60px;
-      height: 32px;
+      width: 48px;
+      height: 26px;
+      flex-shrink: 0;
     }
     .toggle input { opacity: 0; width: 0; height: 0; }
     .slider {
       position: absolute;
       cursor: pointer;
       top: 0; left: 0; right: 0; bottom: 0;
-      background-color: #374151;
-      transition: .3s;
-      border-radius: 34px;
+      background-color: #27272a;
+      transition: .2s ease;
+      border-radius: var(--radius);
+      border: 1px solid #3f3f46;
     }
     .slider:before {
       position: absolute;
       content: "";
-      height: 24px;
-      width: 24px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .3s;
-      border-radius: 50%;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #71717a;
+      transition: .2s ease;
+      border-radius: 4px;
     }
-    input:checked + .slider { background-color: var(--accent); }
-    input:checked + .slider:before { transform: translateX(28px); }
+    input:checked + .slider {
+      background-color: var(--accent-red);
+      border-color: var(--accent-red);
+    }
+    input:checked + .slider:before {
+      transform: translateX(22px);
+      background-color: #ffffff;
+    }
 
-    /* Inputs and Buttons */
+    /* Inputs & Buttons */
     .input-box {
       width: 100%;
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      padding: 12px 16px;
-      border-radius: 10px;
-      color: #fff;
-      font-size: 0.95rem;
-      margin-top: 8px;
-      outline: none;
-      transition: border-color .2s;
-    }
-    .input-box:focus { border-color: var(--primary); }
-    .btn {
-      background: var(--primary);
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all .2s;
+      background: var(--input-bg);
+      border: 1px solid var(--card-border);
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      color: #ffffff;
+      font-size: 0.88rem;
+      font-family: var(--mono);
       margin-top: 10px;
-      width: 100%;
+      outline: none;
+      transition: border-color .15s ease;
+    }
+    .input-box:focus {
+      border-color: var(--accent-red);
+    }
+    .btn {
+      background: var(--accent-red);
+      color: #ffffff;
+      border: 1px solid transparent;
+      padding: 10px 18px;
+      border-radius: var(--radius);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-family: var(--mono);
+      cursor: pointer;
+      transition: all .15s ease;
+      margin-top: 12px;
       text-align: center;
       text-decoration: none;
       display: inline-block;
     }
-    .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
-    .btn.danger { background: var(--danger); }
-    .btn.secondary { background: rgba(255, 255, 255, 0.1); color: var(--text); }
-    .btn.secondary:hover { background: rgba(255, 255, 255, 0.2); }
-    
+    .btn:hover {
+      background: var(--accent-red-hover);
+    }
+    .btn.secondary {
+      background: #18181b;
+      color: #d4d4d8;
+      border: 1px solid var(--card-border);
+    }
+    .btn.secondary:hover {
+      background: #27272a;
+      border-color: #3f3f46;
+      color: #ffffff;
+    }
+    .btn.danger {
+      background: transparent;
+      border: 1px solid var(--accent-red);
+      color: var(--accent-red);
+    }
+    .btn.danger:hover {
+      background: var(--accent-red);
+      color: #ffffff;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+
     .status-msg {
       margin-top: 8px;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       min-height: 1.2rem;
+      font-family: var(--mono);
     }
+
+    /* Minimalist Footer */
     .nav-links {
       display: flex;
-      gap: 12px;
+      gap: 16px;
       justify-content: center;
-      margin-top: 10px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--card-border);
     }
     .nav-links a {
       color: var(--text-muted);
       text-decoration: none;
-      font-size: 0.85rem;
-      transition: color .2s;
+      font-size: 0.75rem;
+      font-family: var(--mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: color .15s;
     }
-    .nav-links a:hover { color: #fff; }
+    .nav-links a:hover {
+      color: #ffffff;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <div class="logo">
-        <span>🛡️</span>
-        <span>Hero's Walls</span>
+      <div class="brand">
+        <span class="brand-title">Hero's Walls</span>
+        <span class="brand-tag">DNS Filtering Appliance</span>
       </div>
       <div id="statusBadge" class="badge">
-        <span class="dot"></span>
+        <span class="indicator"></span>
         <span id="statusText">Active & Protecting</span>
       </div>
     </div>
 
-    <!-- On/Off Control -->
+    <!-- Main Sinkhole Toggle -->
     <div class="card">
       <div class="toggle-row">
         <div>
-          <div class="switch-label">Ad & Tracker Sinkhole</div>
-          <div class="stat-sub">Blocks ads, tracking scripts & telemetry across home Wi-Fi</div>
+          <div class="switch-title">Ad & Tracker Sinkhole</div>
+          <div class="stat-sub">Intercepts ad networks, telemetry, and tracking beacons network-wide</div>
         </div>
         <label class="toggle">
           <input type="checkbox" id="adblockToggle" checked onchange="toggleAdblock(this.checked)">
@@ -649,62 +722,64 @@ const char* heroDashboard_html = R"~(
       </div>
     </div>
 
-    <!-- Stats Matrix -->
+    <!-- Real-Time Metrics -->
     <div class="grid">
       <div class="card">
-        <div class="card-title">Ads Blocked</div>
+        <div class="card-title">Ads Sinkholed</div>
         <div id="statBlocked" class="stat-val">0</div>
-        <div class="stat-sub">Sinkholed to 0.0.0.0</div>
+        <div class="stat-sub">Resolved to 0.0.0.0 / ::</div>
       </div>
       <div class="card">
-        <div class="card-title">Allowed Queries</div>
+        <div class="card-title">Queries Allowed</div>
         <div id="statAllowed" class="stat-val">0</div>
-        <div class="stat-sub">Forwarded upstream</div>
+        <div class="stat-sub">Forwarded to upstream resolver</div>
       </div>
       <div class="card">
-        <div class="card-title">Active Filter Vault</div>
-        <div id="statDomains" class="stat-val">Core + YouTube</div>
-        <div class="stat-sub">Telemetry, In-App Ads & Trackers</div>
+        <div class="card-title">Filter Engine</div>
+        <div id="statDomains" class="stat-val" style="font-size: 1.5rem; line-height: 2.2rem;">Core + YouTube</div>
+        <div class="stat-sub">Active ad patterns & telemetry blocks</div>
       </div>
     </div>
 
-    <!-- Wi-Fi Auto-Remember & Setup Card -->
+    <!-- Wi-Fi Network Setup -->
     <div class="card">
-      <div class="card-title">Home Wi-Fi Manager</div>
-      <p class="stat-sub" style="margin-bottom: 12px;">The device auto-connects to saved networks (e.g. your home Wi-Fi). If you move it to another location or change routers, save the new Wi-Fi credentials below:</p>
-      <input type="text" id="wifiSsid" class="input-box" placeholder="Network SSID (e.g. MyHomeWiFi)">
-      <input type="password" id="wifiPass" class="input-box" placeholder="Wi-Fi Password">
+      <div class="card-title">Wi-Fi Network Configuration</div>
+      <p class="stat-sub">The device reconnects to your network on boot. To configure a new network, enter credentials below:</p>
+      <input type="text" id="wifiSsid" class="input-box" placeholder="Network SSID (e.g. Home_WiFi)">
+      <input type="password" id="wifiPass" class="input-box" placeholder="Network Password">
       <button class="btn" onclick="saveWifiCredentials()">Save & Connect</button>
       <div id="wifiMsg" class="status-msg"></div>
     </div>
 
-    <!-- Custom Domain Blocker Card -->
+    <!-- Custom Domain Rules -->
     <div class="card">
-      <div class="card-title">Custom Domain Filter</div>
-      <p class="stat-sub" style="margin-bottom: 12px;">Add specific ad or tracker domains to block immediately:</p>
+      <div class="card-title">Custom Domain Rules</div>
+      <p class="stat-sub">Add or delete custom rules with immediate precedence over blocklists:</p>
       <input type="text" id="customDomain" class="input-box" placeholder="e.g. ads.example.com">
-      <div style="display: flex; gap: 10px;">
+      <div class="btn-group">
         <button class="btn" onclick="addCustomDomain()">Block Domain</button>
         <button class="btn secondary" onclick="delCustomDomain()">Unblock Domain</button>
       </div>
       <div id="customMsg" class="status-msg"></div>
     </div>
 
-    <!-- Advanced System Actions -->
-    <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <!-- System Controls -->
+    <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
       <div>
-        <div style="font-weight: 600;">System Controls</div>
-        <div class="stat-sub">Reboot device or view diagnostics</div>
+        <div class="switch-title">Appliance Controls</div>
+        <div class="stat-sub">Restart ESP32 or access advanced engineering settings</div>
       </div>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn secondary" style="width: auto; margin-top: 0;" onclick="location.href='/web?AdBlocker.htm'">Classic Console</button>
-        <button class="btn danger" style="width: auto; margin-top: 0;" onclick="rebootEsp()">Reboot ESP32</button>
+      <div class="btn-group" style="margin-top: 0;">
+        <button class="btn secondary" style="margin-top: 0;" onclick="location.href='/web?AdBlocker.htm'">Classic Console</button>
+        <button class="btn danger" style="margin-top: 0;" onclick="rebootEsp()">Reboot</button>
       </div>
     </div>
 
     <div class="nav-links">
-      <a href="/web?AdBlocker.htm">Full Configuration</a> &bull;
-      <a href="/control?displayLog=1" target="_blank">View Live Logs</a> &bull;
+      <a href="/web?AdBlocker.htm">Full Configuration</a>
+      <span style="color: var(--text-dim);">&bull;</span>
+      <a href="/control?displayLog=1" target="_blank">Live Logs</a>
+      <span style="color: var(--text-dim);">&bull;</span>
       <a href="/web?OTA.htm">Firmware OTA</a>
     </div>
   </div>
@@ -746,21 +821,21 @@ const char* heroDashboard_html = R"~(
       const pass = document.getElementById('wifiPass').value.trim();
       const msg = document.getElementById('wifiMsg');
       if (!ssid) {
-        msg.style.color = 'var(--danger)';
+        msg.style.color = 'var(--accent-red)';
         msg.innerText = 'Please enter an SSID';
         return;
       }
-      msg.style.color = '#60a5fa';
+      msg.style.color = '#ffffff';
       msg.innerText = 'Saving credentials and restarting ESP32...';
       fetch('/control?ST_SSID=' + encodeURIComponent(ssid))
         .then(() => fetch('/control?ST_Pass=' + encodeURIComponent(pass)))
         .then(() => fetch('/control?save=1'))
         .then(() => fetch('/control?reset=1'))
         .then(() => {
-          msg.innerText = 'Rebooting! Reconnect your device to ' + ssid + ' once online.';
+          msg.innerText = 'Rebooting! Reconnect to ' + ssid + ' once online.';
         })
         .catch(() => {
-          msg.style.color = 'var(--danger)';
+          msg.style.color = 'var(--accent-red)';
           msg.innerText = 'Request sent. Device is rebooting.';
         });
     }
@@ -769,18 +844,18 @@ const char* heroDashboard_html = R"~(
       const d = document.getElementById('customDomain').value.trim();
       const msg = document.getElementById('customMsg');
       if (!d) return;
-      msg.style.color = '#60a5fa';
+      msg.style.color = '#a1a1aa';
       msg.innerText = 'Adding ' + d + '...';
       fetch('/control?uLoad=' + encodeURIComponent(d))
         .then(() => {
-          msg.style.color = 'var(--accent)';
-          msg.innerText = d + ' is now blocked!';
+          msg.style.color = '#ffffff';
+          msg.innerText = d + ' is now blocked.';
           document.getElementById('customDomain').value = '';
           updateStats();
         })
         .catch(e => {
-          msg.style.color = 'var(--danger)';
-          msg.innerText = 'Failed to add domain';
+          msg.style.color = 'var(--accent-red)';
+          msg.innerText = 'Failed to add domain.';
         });
     }
 
@@ -788,11 +863,11 @@ const char* heroDashboard_html = R"~(
       const d = document.getElementById('customDomain').value.trim();
       const msg = document.getElementById('customMsg');
       if (!d) return;
-      msg.style.color = '#60a5fa';
+      msg.style.color = '#a1a1aa';
       msg.innerText = 'Removing ' + d + '...';
       fetch('/control?vLoad=' + encodeURIComponent(d))
         .then(() => {
-          msg.style.color = 'var(--accent)';
+          msg.style.color = '#ffffff';
           msg.innerText = d + ' was removed from blocklist.';
           document.getElementById('customDomain').value = '';
           updateStats();
