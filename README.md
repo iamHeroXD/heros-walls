@@ -3,10 +3,13 @@
 
 [![Hardware](https://img.shields.io/badge/Hardware-ESP32--C3%20%7C%20ESP32--S3-blue.svg)](docs/HARDWARE.md)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-green.svg)](LICENSE)
+[![Website](https://img.shields.io/badge/Website-Live_on_Vercel-black?logo=vercel&logoColor=white)](https://heros-walls.vercel.app)
 [![Latency](https://img.shields.io/badge/Latency-Sub--millisecond-brightgreen.svg)](docs/PERFORMANCE.md)
 [![False Positives](https://img.shields.io/badge/False_Positives-0%25-success.svg)](benchmarks/results.json)
 
 **Hero's Walls** is a high-performance, embedded DNS ad and tracker blocker designed to run directly on Espressif microcontrollers (ESP32-C3 and ESP32-S3). Operating on bare metal with FreeRTOS and lwIP, it filters DNS requests for your entire home network at sub-millisecond speeds—consuming less than 0.5 Watts of power.
+
+🌐 **Official Website & Interactive Showcase**: [https://heros-walls.vercel.app](https://heros-walls.vercel.app)
 
 ---
 
@@ -81,8 +84,18 @@ nslookup google.com <device-ip>
 
 ---
 
+## 👤 Maintainer & Creator
+
+**Hero.X**  
+- 🌐 **Developer Portfolio**: [https://heroxportfolio.netlify.app/](https://heroxportfolio.netlify.app/)  
+- 💻 **GitHub**: [@iamHeroXD](https://github.com/iamHeroXD)  
+- ⚡ **Project Site**: [https://heros-walls.vercel.app](https://heros-walls.vercel.app)
+
+---
+
 ## ⚖️ Upstream & License
 
 Hero's Walls V2 is developed atop the foundational open-source architecture of [ESP32_AdBlocker](https://github.com/s60sc/ESP32_AdBlocker) by [@s60sc](https://github.com/s60sc) and [@dateno1](https://github.com/dateno1).
 
 Released under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+

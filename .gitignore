@@ -37,4 +37,6 @@ README_LOCAL_SETUP.md
 RECOVERY.md
 REPORT.md
 TEST_REPORT.md
-
+# Deployment
+.vercel/
+*.vercel

@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hero's Walls — Privacy-First DNS Ad & Tracker Blocker for ESP32</title>
+  <meta name="description" content="Block ads on your whole network with one tiny chip. Hero's Walls is a sub-millisecond, open-source DNS sinkhole powered by ESP32-C3 and ESP32-S3 microcontrollers.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🛡️</text></svg>">
+  
+  <!-- Google Fonts: Archivo & IBM Plex Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: #0a0a0a;
+      color: #fff;
+      font-family: 'Archivo', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 17px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    a { color: inherit; }
+    pre { margin: 0; }
+    ::selection { background: #d9150d; color: #fff; }
+    a:focus-visible { outline: 2px solid #ff4338; outline-offset: 3px; }
+
+    /* Top progress bar */
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: #d9150d;
+      z-index: 999;
+      width: 0%;
+      transition: width 0.1s ease-out;
+    }
+
+    /* Links & Buttons */
+    .navlink {
+      position: relative;
+      color: rgba(255,255,255,.72);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      padding: 8px 0;
+      transition: color .15s;
+    }
+    .navlink:hover { color: #fff; }
+    .navlink::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 2px;
+      height: 2px;
+      width: 100%;
+      background: #d9150d;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform .3s cubic-bezier(.2,.7,.2,1);
+    }
+    .navlink:hover::after { transform: scaleX(1); }
+
+    .btn-red {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #d9150d;
+      color: #fff;
+      border: 1px solid #d9150d;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 14px 24px;
+      border-radius: 4px;
+      transition: background .2s, color .2s, border-color .2s;
+      cursor: pointer;
+    }
+    .btn-red:hover { background: #fff; color: #0a0a0a; border-color: #fff; }
+
+    .btn-line-dark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.32);
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 14px 24px;
+      border-radius: 4px;
+      transition: background .2s, color .2s, border-color .2s;
+      cursor: pointer;
+    }
+    .btn-line-dark:hover { background: #fff; color: #0a0a0a; border-color: #fff; }
+
+    .btn-white {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      color: #0a0a0a;
+      border: 1px solid #fff;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 14px 24px;
+      border-radius: 4px;
+      transition: background .2s, color .2s;
+      cursor: pointer;
+    }
+    .btn-white:hover { background: #0a0a0a; color: #fff; }
+
+    .btn-line-red {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.7);
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 14px 24px;
+      border-radius: 4px;
+      transition: background .2s, color .2s;
+      cursor: pointer;
+    }
+    .btn-line-red:hover { background: #fff; color: #d9150d; }
+
+    .arr { display: inline-block; margin-left: 10px; transition: transform .25s cubic-bezier(.2,.7,.2,1); }
+    a:hover .arr { transform: translateX(6px); }
+
+    /* Cards & Hovers */
+    .card {
+      transition: box-shadow .35s, border-color .35s;
+    }
+    .card:hover {
+      box-shadow: 0 24px 48px rgba(10,10,10,.12);
+      border-color: rgba(10,10,10,.3);
+    }
+    .card .bar { width: 36px; height: 4px; background: #d9150d; transition: width .45s cubic-bezier(.2,.7,.2,1); }
+    .card:hover .bar { width: 96px; }
+
+    .feat { position: relative; overflow: hidden; }
+    .feat::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 3px;
+      width: 100%;
+      background: #d9150d;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform .5s cubic-bezier(.2,.7,.2,1);
+    }
+    .feat:hover::after { transform: scaleX(1); }
+
+    .crow .cc { transition: background .25s; }
+    .crow:hover .cc { background: #f4f4f2; }
+
+    .tier { transition: box-shadow .35s, transform .25s; }
+    .tier:hover { box-shadow: 0 24px 48px rgba(10,10,10,.18); transform: translateY(-3px); }
+
+    .doclink {
+      background: #fff;
+      color: #0a0a0a;
+      text-decoration: none;
+      transition: background .2s, color .2s;
+    }
+    .doclink:hover { background: #0a0a0a; color: #fff; }
+    .docarrow { display: inline-block; transition: transform .3s cubic-bezier(.2,.7,.2,1), color .2s; }
+    .doclink:hover .docarrow { transform: translateX(8px); color: #ff4338; }
+
+    .footlink { color: rgba(255,255,255,.72); text-decoration: none; font-size: 15px; }
+    .footlink:hover { color: #fff; text-decoration: underline; }
+
+    .live {
+      position: relative;
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #ff4338;
+      margin-right: 12px;
+    }
+    .live::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: #ff4338;
+      animation: ping 1.8s ease-out infinite;
+    }
+
+    /* Diagram Nodes & Motion */
+    .node {
+      flex: 0 0 auto;
+      width: 104px;
+      padding: 12px 6px;
+      border: 1px solid rgba(255,255,255,.32);
+      border-radius: 6px;
+      text-align: center;
+      font-size: 12.5px;
+      line-height: 1.3;
+      font-weight: 600;
+      position: relative;
+    }
+    .track { position: relative; flex: 1 1 0; min-width: 18px; height: 12px; }
+    .trackline { position: absolute; left: 0; right: 0; top: 5px; height: 2px; background: rgba(255,255,255,.22); }
+    .dot { position: absolute; top: 0; width: 12px; height: 12px; border-radius: 50%; opacity: 0; }
+    .xmark {
+      position: absolute;
+      left: -12px;
+      right: -12px;
+      top: -30px;
+      text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: #ff4338;
+      opacity: 0;
+    }
+
+    /* Animations */
+    @keyframes ping { 0% { transform: scale(1); opacity: .75; } 100% { transform: scale(3); opacity: 0; } }
+    @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    @keyframes gridMove { from { background-position: 0 0, 0 0; } to { background-position: 64px 64px, 64px 64px; } }
+    @keyframes dotBlock { 0% { left: 0; opacity: 0; } 6% { opacity: 1; } 40% { left: calc(100% - 12px); opacity: 1; } 43%, 100% { left: calc(100% - 12px); opacity: 0; } }
+    @keyframes dotPass1 { 0% { left: 0; opacity: 0; } 6% { opacity: 1; } 40% { left: calc(100% - 12px); opacity: 1; } 41%, 100% { left: calc(100% - 12px); opacity: 0; } }
+    @keyframes dotPass2 { 0%, 40% { left: 0; opacity: 0; } 42% { left: 0; opacity: 1; } 78% { left: calc(100% - 12px); opacity: 1; } 84%, 100% { left: calc(100% - 12px); opacity: 0; } }
+    @keyframes xflash { 0%, 40% { opacity: 0; transform: translateY(6px); } 46%, 70% { opacity: 1; transform: none; } 78%, 100% { opacity: 0; } }
+    @keyframes chipHit { 0%, 40% { background: #0a0a0a; border-color: rgba(255,255,255,.32); } 46%, 66% { background: #d9150d; border-color: #d9150d; } 76%, 100% { background: #0a0a0a; border-color: rgba(255,255,255,.32); } }
+    @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+    @keyframes slideX { from { transform: translateX(10%); } to { transform: translateX(-25%); } }
+
+    .gridbg { animation: gridMove 20s linear infinite; }
+    .marq-track { animation: marquee 30s linear infinite; }
+    .marq:hover .marq-track { animation-play-state: paused; }
+    .d-block { animation: dotBlock 6s linear infinite; }
+    .d-pass1 { animation: dotPass1 6s linear infinite; }
+    .d-pass2 { animation: dotPass2 6s linear infinite; }
+    .xmark { animation: xflash 6s linear infinite; }
+    .chiphit { animation: chipHit 6s linear infinite; }
+    .cursor { display: inline-block; width: 9px; height: 17px; background: #fff; vertical-align: -3px; animation: blink 1s steps(1) infinite; }
+    .bigword { animation: slideX 25s linear infinite alternate; }
+
+    /* Responsive */
+    @media (max-width: 820px) {
+      .cmp-head { display: none !important; }
+      .cmp-wrap { min-width: 0 !important; }
+      .crow { display: block !important; padding: 22px 0; }
+      .crow > div { padding: 10px 0 !important; display: flex; justify-content: space-between; gap: 20px; text-align: right; border-top: 1px solid rgba(10,10,10,.08); }
+      .crow > div::before { content: attr(data-label); text-align: left; font-weight: 600; color: #0a0a0a; flex: 0 0 auto; }
+      .crow > div:first-child { display: block; border-top: 0; text-align: left; font-size: 19px !important; font-weight: 700 !important; padding-bottom: 12px !important; }
+      .crow > div:first-child::before { content: none; }
+      .crow .ch { background: #0a0a0a !important; color: #fff !important; padding: 12px 14px !important; border-radius: 6px; margin: 4px 0; border-top: 0; }
+      .crow .ch::before { color: #fff; }
+    }
+    @media (max-width: 720px) {
+      .hide-sm { display: none !important; }
+    }
+    @media (max-width: 560px) {
+      .ctas > a { flex: 1 1 100%; text-align: center; }
+      .term { padding: 20px 16px !important; font-size: 12.5px !important; }
+      #setup pre { padding: 16px !important; font-size: 12px !important; }
+      .stat { padding: 28px 16px 28px 0 !important; }
+      .flowpanel { padding: 20px !important; }
+      .node { width: 72px !important; font-size: 11px !important; padding: 10px 2px !important; overflow-wrap: anywhere; }
+      .footlink { display: inline-block; padding: 6px 0; }
+    }
+  </style>
+</head>
+<body id="top">
+
+  <div class="progress-bar" id="progressBar"></div>
+
+  <!-- ==================== HERO SECTION ==================== -->
+  <section style="position:relative;overflow:hidden;background:#0a0a0a;color:#fff;">
+    <div class="gridbg" style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);background-size:64px 64px;-webkit-mask-image:radial-gradient(ellipse at 72% 38%,#000 0%,transparent 68%);mask-image:radial-gradient(ellipse at 72% 38%,#000 0%,transparent 68%);pointer-events:none;"></div>
+
+    <header style="position:relative;max-width:1200px;margin:0 auto;padding:28px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 32px;">
+      <a href="#top" style="font-weight:700;font-size:20px;letter-spacing:-0.01em;color:#fff;text-decoration:none;display:flex;align-items:center;gap:8px;">
+        <span>🛡️</span> Hero's Walls
+      </a>
+      <nav style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 28px;">
+        <a class="navlink hide-sm" href="#how">How it works</a>
+        <a class="navlink hide-sm" href="#why">Why</a>
+        <a class="navlink" href="#setup">Setup</a>
+        <a class="navlink hide-sm" href="#compare">Compare</a>
+        <a class="navlink hide-sm" href="#contribute">Contribute</a>
+        <a class="navlink" href="https://heroxportfolio.netlify.app/" target="_blank" rel="noopener noreferrer" style="color:#ff8a80;font-weight:600;">Portfolio ↗</a>
+        <a class="btn-red" href="https://github.com/iamHeroXD/heros-walls" target="_blank" rel="noopener noreferrer" style="font-size:14px;padding:9px 18px;">GitHub</a>
+      </nav>
+    </header>
+
+    <div style="position:relative;max-width:1200px;margin:0 auto;padding:clamp(56px,8vw,104px) 24px clamp(64px,8vw,104px);display:flex;flex-wrap:wrap;align-items:center;gap:64px 72px;">
+      <div style="flex:1 1 480px;min-width:0;">
+        <div style="display:flex;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#ff4338;margin:0 0 24px;">
+          <span class="live"></span>Open-Source DNS Ad Blocker
+        </div>
+        <h1 style="margin:0;font-size:clamp(38px,6.2vw,84px);line-height:0.98;font-weight:800;letter-spacing:-0.035em;">
+          Block ads on your whole network with one tiny chip.
+        </h1>
+        <p style="margin:30px 0 0;font-size:clamp(18px,1.5vw,21px);line-height:1.55;color:rgba(255,255,255,.75);max-width:560px;">
+          Hero's Walls runs on a single ESP32-C3 board that costs a few dollars. No Raspberry Pi, no server, no SD card. Flash it, point your router at it, and every device at home is covered.
+        </p>
+        <div class="ctas" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:38px;">
+          <a class="btn-red" href="https://github.com/iamHeroXD/heros-walls" target="_blank" rel="noopener noreferrer">
+            View on GitHub <span class="arr">→</span>
+          </a>
+          <a class="btn-line-dark" href="#setup">Follow the setup guide</a>
+          <a class="btn-line-dark" href="https://heroxportfolio.netlify.app/" target="_blank" rel="noopener noreferrer" style="border-color:rgba(255,67,56,0.6);color:#ff8a80;">
+            Developer Portfolio ↗
+          </a>
+        </div>
+        <p style="margin:26px 0 0;font-family:'IBM Plex Mono',monospace;font-size:13px;color:rgba(255,255,255,.6);">
+          AGPL-3.0 · Powered by ESP32-C3 & ESP32-S3 · Sub-millisecond latency
+        </p>
+      </div>
+
+      <div style="flex:1 1 420px;min-width:0;">
+        <div style="border:1px solid rgba(255,255,255,.18);border-radius:8px;background:#111;overflow:hidden;box-shadow:0 40px 80px rgba(0,0,0,.6);">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.12);background:#161616;">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,.7);">Live Terminal Test</span>
+            <span style="display:flex;gap:6px;">
+              <span style="width:10px;height:10px;border-radius:50%;background:#d9150d;"></span>
+              <span style="width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.28);"></span>
+              <span style="width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.28);"></span>
+            </span>
+          </div>
+          <div class="term" style="padding:26px 22px;font-family:'IBM Plex Mono',monospace;font-size:14px;line-height:2;color:#f4f4f2;overflow-x:auto;">
+            <div><span style="color:rgba(255,255,255,.55);">$</span> nslookup doubleclick.net &lt;device-ip&gt;</div>
+            <div>0.0.0.0 &nbsp;&nbsp;<span style="background:#d9150d;color:#fff;padding:2px 8px;border-radius:3px;font-size:12px;letter-spacing:0.06em;font-weight:600;">BLOCKED</span></div>
+            <div style="height:12px;"></div>
+            <div><span style="color:rgba(255,255,255,.55);">$</span> nslookup google.com &lt;device-ip&gt;</div>
+            <div>Resolves normally &nbsp;&nbsp;<span style="border:1px solid rgba(255,255,255,.45);color:#fff;padding:1px 8px;border-radius:3px;font-size:12px;letter-spacing:0.06em;">ALLOWED</span></div>
+            <div style="height:12px;"></div>
+            <div><span style="color:rgba(255,255,255,.55);">$</span> <span class="cursor"></span></div>
+          </div>
+        </div>
+        <p style="margin:16px 0 0;font-size:14px;color:rgba(255,255,255,.6);">
+          Ad and tracker domains get a dead-end answer. Everything else loads cleanly and fast.
+        </p>
+      </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div style="position:relative;border-top:1px solid rgba(255,255,255,.14);">
+      <div style="max-width:1200px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+        <div class="stat" style="padding:36px 24px 36px 0;border-right:1px solid rgba(255,255,255,.1);">
+          <div style="font-size:clamp(34px,3.8vw,48px);font-weight:700;letter-spacing:-0.03em;line-height:1;">&lt; 0.5 W</div>
+          <div style="margin-top:10px;font-size:15px;color:rgba(255,255,255,.68);">Power draw from router USB</div>
+        </div>
+        <div class="stat" style="padding:36px 24px 36px 20px;border-right:1px solid rgba(255,255,255,.1);">
+          <div style="font-size:clamp(34px,3.8vw,48px);font-weight:700;letter-spacing:-0.03em;line-height:1;">$3–6</div>
+          <div style="margin-top:10px;font-size:15px;color:rgba(255,255,255,.68);">Hardware cost</div>
+        </div>
+        <div class="stat" style="padding:36px 24px 36px 20px;border-right:1px solid rgba(255,255,255,.1);">
+          <div style="font-size:clamp(34px,3.8vw,48px);font-weight:700;letter-spacing:-0.03em;line-height:1;">&lt; 1 ms</div>
+          <div style="margin-top:10px;font-size:15px;color:rgba(255,255,255,.68);">Decision latency per request</div>
+        </div>
+        <div class="stat" style="padding:36px 24px 36px 20px;">
+          <div style="font-size:clamp(34px,3.8vw,48px);font-weight:700;letter-spacing:-0.03em;line-height:1;">0</div>
+          <div style="margin-top:10px;font-size:15px;color:rgba(255,255,255,.68);">Raspberry Pis needed</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== MARQUEE TICKER ==================== -->
+  <section class="marq" style="background:#d9150d;color:#fff;overflow:hidden;border-top:1px solid #d9150d;border-bottom:1px solid #d9150d;">
+    <div class="marq-track" style="display:flex;width:max-content;padding:16px 0;font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.14em;text-transform:uppercase;font-weight:500;white-space:nowrap;">
+      <div style="display:flex;align-items:center;gap:28px;padding-right:28px;">
+        <span>DNS Sinkhole</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>Sub-millisecond</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>ESP32-C3 & S3</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>No Raspberry Pi</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>Privacy First</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>Under 0.5 Watts</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>100% Open Source</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>AGPL-3.0 License</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>DNS Sinkhole</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>Sub-millisecond</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>ESP32-C3 & S3</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>No Raspberry Pi</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>Privacy First</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>Under 0.5 Watts</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>100% Open Source</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+        <span>AGPL-3.0 License</span><span style="width:6px;height:6px;background:#fff;display:inline-block;"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== HOW IT WORKS ==================== -->
+  <section id="how" style="background:#fff;color:#0a0a0a;">
+    <div style="max-width:1200px;margin:0 auto;padding:clamp(72px,9vw,120px) 24px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#d9150d;margin:0 0 18px;">
+        How it works
+      </div>
+      <h2 style="margin:0;font-size:clamp(32px,4.5vw,56px);line-height:1.05;font-weight:800;letter-spacing:-0.03em;max-width:820px;">
+        Every website starts with a question. Hero's Walls answers it first.
+      </h2>
+      <p style="margin:24px 0 0;font-size:19px;color:rgba(10,10,10,.68);max-width:680px;">
+        Before your devices load an ad, they look up its address through DNS. Hero's Walls sits in that step and refuses to answer for ad and tracker domains. No browser extension and nothing installed on your devices.
+      </p>
+
+      <div style="margin-top:64px;height:2px;background:#0a0a0a;"></div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:32px;margin-top:32px;">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#d9150d;font-weight:600;">01</div>
+          <h3 style="margin:12px 0 10px;font-size:24px;line-height:1.2;font-weight:700;letter-spacing:-0.02em;">A device asks for an address</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:17px;">Your phone, laptop, or smart TV looks up a domain like ads.example.com before it attempts to fetch any content.</p>
+        </div>
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#d9150d;font-weight:600;">02</div>
+          <h3 style="margin:12px 0 10px;font-size:24px;line-height:1.2;font-weight:700;letter-spacing:-0.02em;">The chip checks its list</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:17px;">Hero's Walls compares the domain name against its memory blocklist using binary search and label-walking in under 1 ms.</p>
+        </div>
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#d9150d;font-weight:600;">03</div>
+          <h3 style="margin:12px 0 10px;font-size:24px;line-height:1.2;font-weight:700;letter-spacing:-0.02em;">Ads never load</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:17px;">Blocked domains receive an instant 0.0.0.0 sinkhole response. Legitimate queries are forwarded upstream and resolve normally.</p>
+        </div>
+      </div>
+
+      <!-- Live request animation diagram -->
+      <div class="flowpanel" style="margin-top:72px;background:#0a0a0a;color:#fff;border-radius:10px;padding:clamp(24px,4vw,48px);">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 24px;margin-bottom:44px;">
+          <span style="display:flex;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,.7);">
+            <span class="live"></span>Live Protocol Packet Simulation
+          </span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:rgba(255,255,255,.55);">Continuous replay</span>
+        </div>
+
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#ff4338;margin:0 0 20px;">
+          Ad / Tracker Query Path
+        </div>
+        <div style="display:flex;align-items:center;margin-bottom:52px;">
+          <div class="node">Your device</div>
+          <div class="track"><div class="trackline"></div><div class="dot d-block" style="background:#ff4338;"></div></div>
+          <div class="node chiphit" style="background:#0a0a0a;"><span class="xmark">0.0.0.0</span>Hero's Walls</div>
+          <div class="track"><div class="trackline" style="background:repeating-linear-gradient(90deg,rgba(255,255,255,.25) 0 6px,transparent 6px 12px);"></div></div>
+          <div class="node" style="border-style:dashed;color:rgba(255,255,255,.5);">ads.network.com</div>
+        </div>
+
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,.75);margin:0 0 20px;">
+          Legitimate Query Path
+        </div>
+        <div style="display:flex;align-items:center;">
+          <div class="node">Your device</div>
+          <div class="track"><div class="trackline"></div><div class="dot d-pass1" style="background:#fff;"></div></div>
+          <div class="node">Hero's Walls</div>
+          <div class="track"><div class="trackline"></div><div class="dot d-pass2" style="background:#fff;"></div></div>
+          <div class="node">google.com</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== WHO IT'S FOR ==================== -->
+  <section style="background:#f4f4f2;color:#0a0a0a;">
+    <div style="max-width:1200px;margin:0 auto;padding:clamp(72px,9vw,120px) 24px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#d9150d;margin:0 0 18px;">
+        Who it's for
+      </div>
+      <h2 style="margin:0;font-size:clamp(32px,4.5vw,56px);line-height:1.05;font-weight:800;letter-spacing:-0.03em;max-width:820px;">
+        Made for people who want cleaner internet without the hassle.
+      </h2>
+      <div style="margin-top:52px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;">
+        <div class="card" style="background:#fff;border:1px solid rgba(10,10,10,.12);border-radius:8px;padding:36px 32px 40px;">
+          <div class="bar" style="margin-bottom:26px;"></div>
+          <h3 style="margin:0 0 14px;font-size:22px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;">Privacy-minded households</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:17px;">You want ads and trackers blocked for every phone, computer, and smart TV at home without routing DNS through third-party surveillance services.</p>
+        </div>
+        <div class="card" style="background:#fff;border:1px solid rgba(10,10,10,.12);border-radius:8px;padding:36px 32px 40px;">
+          <div class="bar" style="margin-bottom:26px;"></div>
+          <h3 style="margin:0 0 14px;font-size:22px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;">Makers & embedded developers</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:17px;">You like open projects you can inspect, recompile, and hack. A $3 microcontroller board running bare-metal C++ is an easy weekend project.</p>
+        </div>
+        <div class="card" style="background:#fff;border:1px solid rgba(10,10,10,.12);border-radius:8px;padding:36px 32px 40px;">
+          <div class="bar" style="margin-bottom:26px;"></div>
+          <h3 style="margin:0 0 14px;font-size:22px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;">Pi-hole fans, minus the Pi</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:17px;">You want network-wide sinkholing without maintaining a full Linux distro, paying for an expensive SBC, or dealing with corrupted microSD cards.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== WHY HERO'S WALLS ==================== -->
+  <section id="why" style="background:#fff;color:#0a0a0a;">
+    <div style="max-width:1200px;margin:0 auto;padding:clamp(72px,9vw,120px) 24px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#d9150d;margin:0 0 18px;">
+        Why Hero's Walls
+      </div>
+      <h2 style="margin:0;font-size:clamp(32px,4.5vw,56px);line-height:1.05;font-weight:800;letter-spacing:-0.03em;max-width:820px;">
+        Cheap. Private. Ready in minutes.
+      </h2>
+
+      <div style="margin-top:60px;display:flex;flex-direction:column;">
+        <div style="height:1px;background:rgba(10,10,10,.25);"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:24px 64px;padding:40px 0;">
+          <div style="flex:1 1 300px;min-width:0;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#d9150d;font-weight:600;">01</div>
+            <h3 style="margin:10px 0 0;font-size:clamp(28px,3.4vw,42px);line-height:1.05;font-weight:800;letter-spacing:-0.03em;">Ultra-Low Cost</h3>
+          </div>
+          <div style="flex:1.4 1 360px;min-width:0;">
+            <div style="font-size:clamp(24px,2.8vw,34px);line-height:1.1;font-weight:700;letter-spacing:-0.02em;color:#d9150d;margin:0 0 14px;">$3–6 in hardware.</div>
+            <p style="margin:0;font-size:18px;color:rgba(10,10,10,.7);">One ESP32-C3 board and any USB port for power. No $80 SBC, no dedicated power brick, and less than 0.5 Watts power consumption (under $0.50/year in electricity).</p>
+          </div>
+        </div>
+
+        <div style="height:1px;background:rgba(10,10,10,.25);"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:24px 64px;padding:40px 0;">
+          <div style="flex:1 1 300px;min-width:0;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#d9150d;font-weight:600;">02</div>
+            <h3 style="margin:10px 0 0;font-size:clamp(28px,3.4vw,42px);line-height:1.05;font-weight:800;letter-spacing:-0.03em;">100% Local Privacy</h3>
+          </div>
+          <div style="flex:1.4 1 360px;min-width:0;">
+            <div style="font-size:clamp(24px,2.8vw,34px);line-height:1.1;font-weight:700;letter-spacing:-0.02em;color:#d9150d;margin:0 0 14px;">Decisions stay on your chip.</div>
+            <p style="margin:0;font-size:18px;color:rgba(10,10,10,.7);">DNS queries are evaluated locally on-device. No telemetry, no cloud subscriptions, and no external tracking logs. Code is 100% auditable under AGPL-3.0.</p>
+          </div>
+        </div>
+
+        <div style="height:1px;background:rgba(10,10,10,.25);"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:24px 64px;padding:40px 0;">
+          <div style="flex:1 1 300px;min-width:0;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#d9150d;font-weight:600;">03</div>
+            <h3 style="margin:10px 0 0;font-size:clamp(28px,3.4vw,42px);line-height:1.05;font-weight:800;letter-spacing:-0.03em;">Zero-OS Simplicity</h3>
+          </div>
+          <div style="flex:1.4 1 360px;min-width:0;">
+            <div style="font-size:clamp(24px,2.8vw,34px);line-height:1.1;font-weight:700;letter-spacing:-0.02em;color:#d9150d;margin:0 0 14px;">Flash once, manage from browser.</div>
+            <p style="margin:0;font-size:18px;color:rgba(10,10,10,.7);">There is no Linux OS, kernel updates, or package management. Flash over USB, join its setup AP to save your Wi-Fi details, and manage everything from the clean onboard dashboard.</p>
+          </div>
+        </div>
+        <div style="height:1px;background:rgba(10,10,10,.25);"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SETUP GUIDE ==================== -->
+  <section id="setup" style="background:#0a0a0a;color:#fff;">
+    <div style="max-width:1200px;margin:0 auto;padding:clamp(72px,9vw,120px) 24px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#ff4338;margin:0 0 18px;">
+        Setup Guide
+      </div>
+      <h2 style="margin:0;font-size:clamp(32px,4.5vw,56px);line-height:1.05;font-weight:800;letter-spacing:-0.03em;max-width:820px;">
+        Four steps from a bare board to a blocked ad.
+      </h2>
+      <p style="margin:22px 0 0;font-size:19px;color:rgba(255,255,255,.72);max-width:680px;">
+        You'll need an ESP32-C3 board, a USB-C data cable, and the Arduino CLI with the official ESP32 board package installed.
+      </p>
+
+      <div style="margin-top:60px;display:flex;flex-direction:column;">
+        <!-- STEP 1 -->
+        <div style="height:1px;background:rgba(255,255,255,.25);"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:28px 64px;padding:40px 0;">
+          <div style="flex:1 1 300px;min-width:0;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#ff4338;font-weight:600;">STEP 1</div>
+            <h3 style="margin:12px 0 12px;font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.02em;">Compile & Flash</h3>
+            <p style="margin:0;color:rgba(255,255,255,.7);font-size:17px;">Plug the ESP32 into your computer via USB. Run the compiler and upload commands. Replace COM9 with your board's serial port.</p>
+          </div>
+          <div style="flex:1.5 1 420px;min-width:0;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:#141414;overflow:hidden;">
+            <pre style="padding:22px;font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.8;color:#f4f4f2;overflow-x:auto;"><span style="color:rgba(255,255,255,.55);"># Compile for ESP32-C3</span>
+arduino-cli compile --fqbn esp32:esp32:esp32c3:PartitionScheme=min_spiffs,FlashMode=dio,FlashFreq=80,CDCOnBoot=default .
+
+<span style="color:rgba(255,255,255,.55);"># Flash to device over USB</span>
+arduino-cli upload -p COM9 --fqbn esp32:esp32:esp32c3:PartitionScheme=min_spiffs,FlashMode=dio,FlashFreq=80,CDCOnBoot=default .</pre>
+          </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div style="height:1px;background:rgba(255,255,255,.25);"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:28px 64px;padding:40px 0;">
+          <div style="flex:1 1 300px;min-width:0;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#ff4338;font-weight:600;">STEP 2</div>
+            <h3 style="margin:12px 0 12px;font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.02em;">Connect to Wi-Fi</h3>
+            <p style="margin:0;color:rgba(255,255,255,.7);font-size:17px;">On first boot, the ESP32 broadcasts its own Wi-Fi setup network. Join it on your phone or laptop, enter your home network details, and save.</p>
+          </div>
+          <div style="flex:1.5 1 420px;min-width:0;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:#141414;overflow:hidden;">
+            <pre style="padding:22px;font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:2;color:#f4f4f2;overflow-x:auto;"><span style="color:rgba(255,255,255,.55);">1. Connect Wi-Fi  </span>ESP32_AdBlocker
+<span style="color:rgba(255,255,255,.55);">2. Open browser   </span>http://192.168.4.1
+<span style="color:rgba(255,255,255,.55);">3. Navigate to    </span>Network Settings
+<span style="color:rgba(255,255,255,.55);">4. Save           </span>Enter home Wi-Fi SSID & Password
+<span style="color:rgba(255,255,255,.55);">5. Ready          </span>Device reboots & begins filtering!</pre>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div style="height:1px;background:rgba(255,255,255,.25);"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:28px 64px;padding:40px 0;">
+          <div style="flex:1 1 300px;min-width:0;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#ff4338;font-weight:600;">STEP 3</div>
+            <h3 style="margin:12px 0 12px;font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.02em;">Verify Filtering</h3>
+            <p style="margin:0;color:rgba(255,255,255,.7);font-size:17px;">Verify sinkhole operation directly from terminal. Blocked domains return 0.0.0.0; legitimate domains resolve cleanly.</p>
+          </div>
+          <div style="flex:1.5 1 420px;min-width:0;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:#141414;overflow:hidden;">
+            <pre style="padding:22px;font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.8;color:#f4f4f2;overflow-x:auto;"><span style="color:rgba(255,255,255,.55);"># Should return 0.0.0.0 (Sinkholed!)</span>
+nslookup doubleclick.net &lt;device-ip&gt;
+
+<span style="color:rgba(255,255,255,.55);"># Should resolve normally</span>
+nslookup google.com &lt;device-ip&gt;</pre>
+          </div>
+        </div>
+
+        <!-- STEP 4 -->
+        <div style="height:1px;background:rgba(255,255,255,.25);"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:28px 64px;padding:40px 0;">
+          <div style="flex:1 1 300px;min-width:0;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#ff4338;font-weight:600;">STEP 4</div>
+            <h3 style="margin:12px 0 12px;font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.02em;">Router DHCP Setup</h3>
+            <p style="margin:0;color:rgba(255,255,255,.7);font-size:17px;">Set the ESP32's IP as the primary DNS server in your router settings. Every device on your home network is now protected.</p>
+          </div>
+          <div style="flex:1.5 1 420px;min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:16px;">
+            <p style="margin:0;color:rgba(255,255,255,.7);font-size:17px;">
+              Step-by-step router instructions (JioFiber, TP-Link, ASUS, Netgear) and troubleshooting are documented in our guides:
+            </p>
+            <div class="ctas" style="display:flex;flex-wrap:wrap;gap:12px;">
+              <a class="btn-white" href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/NETWORK_SETUP.md" target="_blank" rel="noopener noreferrer">
+                Router Setup Guide <span class="arr">→</span>
+              </a>
+              <a class="btn-line-dark" href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/RECOVERY.md" target="_blank" rel="noopener noreferrer">
+                Failsafe & Recovery
+              </a>
+            </div>
+          </div>
+        </div>
+        <div style="height:1px;background:rgba(255,255,255,.25);"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== COMPARISON TABLE ==================== -->
+  <section id="compare" style="background:#fff;color:#0a0a0a;">
+    <div style="max-width:1200px;margin:0 auto;padding:clamp(72px,9vw,120px) 24px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#d9150d;margin:0 0 18px;">
+        How it compares
+      </div>
+      <h2 style="margin:0;font-size:clamp(32px,4.5vw,56px);line-height:1.05;font-weight:800;letter-spacing:-0.03em;max-width:820px;">
+        The same power as Pi-hole, at a fraction of the cost.
+      </h2>
+
+      <div style="margin-top:52px;overflow-x:auto;">
+        <div class="cmp-wrap" style="min-width:760px;">
+          <div class="cmp-head" style="display:grid;grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,1.1fr));border-bottom:2px solid #0a0a0a;">
+            <div style="padding:0 16px 18px 0;"></div>
+            <div style="padding:18px 20px;background:#d9150d;color:#fff;font-weight:700;font-size:16px;border-radius:6px 6px 0 0;">Hero's Walls (ESP32)</div>
+            <div style="padding:18px 20px;font-weight:700;font-size:16px;">Pi-hole on Raspberry Pi</div>
+            <div style="padding:18px 20px;font-weight:700;font-size:16px;">Router DNS Blockers</div>
+          </div>
+
+          <div class="crow" style="display:grid;grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,1.1fr));border-bottom:1px solid rgba(10,10,10,.14);">
+            <div class="cc" style="padding:22px 16px 22px 0;font-weight:600;font-size:16px;">Power Draw</div>
+            <div class="ch" data-label="Hero's Walls" style="padding:22px 20px;background:#0a0a0a;color:#fff;font-weight:600;font-size:16px;">&lt; 0.5 W (Router USB)</div>
+            <div class="cc" data-label="Pi-hole" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">5–15 Watts (Dedicated brick)</div>
+            <div class="cc" data-label="Router DNS" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">Dependent on router load</div>
+          </div>
+
+          <div class="crow" style="display:grid;grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,1.1fr));border-bottom:1px solid rgba(10,10,10,.14);">
+            <div class="cc" style="padding:22px 16px 22px 0;font-weight:600;font-size:16px;">Hardware Cost</div>
+            <div class="ch" data-label="Hero's Walls" style="padding:22px 20px;background:#0a0a0a;color:#fff;font-weight:600;font-size:16px;">$3 – $6</div>
+            <div class="cc" data-label="Pi-hole" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">$35 – $80+</div>
+            <div class="cc" data-label="Router DNS" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">Requires high-end router</div>
+          </div>
+
+          <div class="crow" style="display:grid;grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,1.1fr));border-bottom:1px solid rgba(10,10,10,.14);">
+            <div class="cc" style="padding:22px 16px 22px 0;font-weight:600;font-size:16px;">Decision Latency</div>
+            <div class="ch" data-label="Hero's Walls" style="padding:22px 20px;background:#0a0a0a;color:#fff;font-weight:600;font-size:16px;">&lt; 1.0 ms (On-chip SRAM)</div>
+            <div class="cc" data-label="Pi-hole" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">2 – 5 ms (Linux context switch)</div>
+            <div class="cc" data-label="Router DNS" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">Variable (CPU throttled)</div>
+          </div>
+
+          <div class="crow" style="display:grid;grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,1.1fr));border-bottom:1px solid rgba(10,10,10,.14);">
+            <div class="cc" style="padding:22px 16px 22px 0;font-weight:600;font-size:16px;">Storage Reliability</div>
+            <div class="ch" data-label="Hero's Walls" style="padding:22px 20px;background:#0a0a0a;color:#fff;font-weight:600;font-size:16px;">NOR Flash (Zero SD wear)</div>
+            <div class="cc" data-label="Pi-hole" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">microSD (Wearout risk)</div>
+            <div class="cc" data-label="Router DNS" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">Fragile NVRAM partitions</div>
+          </div>
+
+          <div class="crow" style="display:grid;grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,1.1fr));border-bottom:1px solid rgba(10,10,10,.14);">
+            <div class="cc" style="padding:22px 16px 22px 0;font-weight:600;font-size:16px;">Matching Accuracy</div>
+            <div class="ch" data-label="Hero's Walls" style="padding:22px 20px;background:#0a0a0a;color:#fff;font-weight:600;font-size:16px;">Strict Label-Boundary Suffix</div>
+            <div class="cc" data-label="Pi-hole" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">Regex & exact tables</div>
+            <div class="cc" data-label="Router DNS" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">Crude substring matching</div>
+          </div>
+
+          <div class="crow" style="display:grid;grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,1.1fr));border-bottom:1px solid rgba(10,10,10,.14);">
+            <div class="cc" style="padding:22px 16px 22px 0;font-weight:600;font-size:16px;">Failsafe Recovery</div>
+            <div class="ch" data-label="Hero's Walls" style="padding:22px 20px;background:#0a0a0a;color:#fff;font-weight:600;font-size:16px;">Auto SoftAP + Snapshot Rollback</div>
+            <div class="cc" data-label="Pi-hole" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">Manual SSH recovery</div>
+            <div class="cc" data-label="Router DNS" style="padding:22px 20px;color:rgba(10,10,10,.72);font-size:16px;">Router factory reset</div>
+          </div>
+        </div>
+      </div>
+      <p style="margin:24px 0 0;font-size:14px;color:rgba(10,10,10,.6);">
+        Empirical metrics measured live on physical ESP32-C3 hardware. Read the full <a href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/PERFORMANCE.md" target="_blank" rel="noopener noreferrer" style="color:#d9150d;font-weight:600;">performance and benchmark report</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ==================== FEATURES & HARDWARE ==================== -->
+  <section style="background:#f4f4f2;color:#0a0a0a;">
+    <div style="max-width:1200px;margin:0 auto;padding:clamp(72px,9vw,120px) 24px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#d9150d;margin:0 0 18px;">
+        Core Features
+      </div>
+      <h2 style="margin:0;font-size:clamp(32px,4.5vw,56px);line-height:1.05;font-weight:800;letter-spacing:-0.03em;max-width:820px;">
+        Small hardware, careful engineering.
+      </h2>
+
+      <div style="margin-top:52px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1px;background:rgba(10,10,10,.14);border:1px solid rgba(10,10,10,.14);">
+        <div class="feat" style="background:#fff;padding:36px 32px 40px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#d9150d;font-weight:600;">01</div>
+          <h3 style="margin:14px 0 10px;font-size:21px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;">Sub-Millisecond Decisions</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:16.5px;">Binary search over on-chip sorted pointer arrays plus an LRU positive answer cache delivers sub-millisecond lookup speeds.</p>
+        </div>
+        <div class="feat" style="background:#fff;padding:36px 32px 40px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#d9150d;font-weight:600;">02</div>
+          <h3 style="margin:14px 0 10px;font-size:21px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;">Zero False Positives</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:16.5px;">Strict label-boundary matching guarantees that blocking doubleclick.net will never accidentally sinkhole benign domains like notdoubleclick.net.</p>
+        </div>
+        <div class="feat" style="background:#fff;padding:36px 32px 40px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#d9150d;font-weight:600;">03</div>
+          <h3 style="margin:14px 0 10px;font-size:21px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;">Subdomain Inheritance</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:16.5px;">Recursive label walking automatically strips parent labels left-to-right, ensuring all subdomains are blocked without bloating the list.</p>
+        </div>
+        <div class="feat" style="background:#fff;padding:36px 32px 40px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#d9150d;font-weight:600;">04</div>
+          <h3 style="margin:14px 0 10px;font-size:21px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;">Allowlist Precedence</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:16.5px;">System infrastructure and user-defined allowlist rules always take absolute priority over blocklists and pattern filters.</p>
+        </div>
+        <div class="feat" style="background:#fff;padding:36px 32px 40px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#d9150d;font-weight:600;">05</div>
+          <h3 style="margin:14px 0 10px;font-size:21px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;">Minimalist Dark Dashboard</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:16.5px;">Inspect live DNS query volumes, toggle adblocking, and manage custom rules over real-time WebSockets directly on the chip.</p>
+        </div>
+        <div class="feat" style="background:#fff;padding:36px 32px 40px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#d9150d;font-weight:600;">06</div>
+          <h3 style="margin:14px 0 10px;font-size:21px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;">Instant Failsafe Recovery</h3>
+          <p style="margin:0;color:rgba(10,10,10,.68);font-size:16.5px;">If Wi-Fi drops, it spawns a SoftAP recovery portal. If a download fails, it automatically rolls back to the previous flash snapshot.</p>
+        </div>
+      </div>
+
+      <!-- Hardware Tier Cards -->
+      <div style="margin-top:90px;">
+        <h3 style="margin:0;font-size:clamp(28px,3.2vw,40px);line-height:1.1;font-weight:800;letter-spacing:-0.03em;">
+          Pick the hardware that fits your network.
+        </h3>
+        <p style="margin:14px 0 0;font-size:18px;color:rgba(10,10,10,.68);max-width:640px;">
+          Both microcontrollers run the identical Hero's Walls firmware. Choose the profile based on your preferred blocklist depth:
+        </p>
+        <div style="margin-top:36px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;">
+          <div class="tier" style="background:#0a0a0a;color:#fff;border-radius:8px;padding:40px 36px;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;color:#ff4338;">Recommended starter</div>
+            <h4 style="margin:14px 0 0;font-size:34px;line-height:1.1;font-weight:800;letter-spacing:-0.03em;">ESP32-C3</h4>
+            <div style="margin:22px 0 0;font-size:22px;font-weight:700;">~1,500 – 3,000 domains</div>
+            <p style="margin:10px 0 0;color:rgba(255,255,255,.7);font-size:16.5px;">Single-core 160MHz RISC-V. Internal SRAM arena with pattern rule acceleration (covers YouTube ad beacons and mobile ad SDKs). Coin-sized footprint.</p>
+          </div>
+          <div class="tier" style="background:#fff;color:#0a0a0a;border:1px solid rgba(10,10,10,.16);border-radius:8px;padding:40px 36px;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;color:#d9150d;">Enterprise capacity</div>
+            <h4 style="margin:14px 0 0;font-size:34px;line-height:1.1;font-weight:800;letter-spacing:-0.03em;">ESP32-S3</h4>
+            <div style="margin:22px 0 0;font-size:22px;font-weight:700;">250,000+ domains</div>
+            <p style="margin:10px 0 0;color:rgba(10,10,10,.68);font-size:16.5px;">Dual-core 240MHz Xtensa LX7 with 8MB Octal PSRAM. Stores full, enterprise-grade StevenBlack and AdGuard blocklists in external RAM.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== CONTRIBUTE ==================== -->
+  <section id="contribute" style="position:relative;overflow:hidden;background:#d9150d;color:#fff;">
+    <div class="bigword" aria-hidden="true" style="position:absolute;top:50%;left:0;margin-top:-0.5em;font-size:clamp(150px,24vw,340px);line-height:1;font-weight:800;letter-spacing:-0.04em;white-space:nowrap;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.18);pointer-events:none;user-select:none;">
+      FORK IT · FLASH IT · FIX IT
+    </div>
+    <div style="position:relative;max-width:1200px;margin:0 auto;padding:clamp(72px,9vw,120px) 24px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#fff;margin:0 0 18px;">
+        Open Source Community
+      </div>
+      <h2 style="margin:0;font-size:clamp(36px,5.2vw,72px);line-height:1;font-weight:800;letter-spacing:-0.035em;max-width:900px;">
+        Run it. Break it. Make it better.
+      </h2>
+      <p style="margin:26px 0 0;font-size:20px;line-height:1.55;max-width:680px;color:#fff;">
+        Hero's Walls is completely open source under AGPL-3.0. Flash the current release, test it on your network, benchmark it, and contribute improvements.
+      </p>
+
+      <div style="margin-top:52px;height:1px;background:rgba(255,255,255,.6);"></div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:32px;margin-top:32px;">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;">01</div>
+          <h3 style="margin:10px 0 8px;font-size:22px;line-height:1.2;font-weight:700;letter-spacing:-0.02em;">Fork & Flash</h3>
+          <p style="margin:0;font-size:16.5px;color:#fff;">Fork the repo, build the firmware with Arduino CLI, and flash to your ESP32 board in minutes.</p>
+        </div>
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;">02</div>
+          <h3 style="margin:10px 0 8px;font-size:22px;line-height:1.2;font-weight:700;letter-spacing:-0.02em;">Test & Benchmark</h3>
+          <p style="margin:0;font-size:16.5px;color:#fff;">Run the Python benchmark suite against your board to measure p50/p95 latency and verify zero false positives.</p>
+        </div>
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;">03</div>
+          <h3 style="margin:10px 0 8px;font-size:22px;line-height:1.2;font-weight:700;letter-spacing:-0.02em;">Optimize & Expand</h3>
+          <p style="margin:0;font-size:16.5px;color:#fff;">Improve the binary search engine, contribute new board targets, enhance the UI, or tighten memory allocations.</p>
+        </div>
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;">04</div>
+          <h3 style="margin:10px 0 8px;font-size:22px;line-height:1.2;font-weight:700;letter-spacing:-0.02em;">Submit a PR</h3>
+          <p style="margin:0;font-size:16.5px;color:#fff;">Submit a pull request or report an issue. Contributions from makers worldwide are welcome.</p>
+        </div>
+      </div>
+
+      <div class="ctas" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:48px;">
+        <a class="btn-white" href="https://github.com/iamHeroXD/heros-walls" target="_blank" rel="noopener noreferrer">
+          Open GitHub Repo <span class="arr">→</span>
+        </a>
+        <a class="btn-line-red" href="https://github.com/iamHeroXD/heros-walls/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">
+          Contributing Guide
+        </a>
+        <a class="btn-line-red" href="https://github.com/iamHeroXD/heros-walls/issues" target="_blank" rel="noopener noreferrer">
+          Report an Issue
+        </a>
+        <a class="btn-line-red" href="https://heroxportfolio.netlify.app/" target="_blank" rel="noopener noreferrer">
+          Hero.X Portfolio ↗
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== DOCUMENTATION SUITE ==================== -->
+  <section style="background:#fff;color:#0a0a0a;">
+    <div style="max-width:1200px;margin:0 auto;padding:clamp(72px,9vw,120px) 24px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#d9150d;margin:0 0 18px;">
+        Documentation Suite
+      </div>
+      <h2 style="margin:0;font-size:clamp(32px,4.5vw,56px);line-height:1.05;font-weight:800;letter-spacing:-0.03em;max-width:820px;">
+        Go as deep into the architecture as you want.
+      </h2>
+      <p style="margin:20px 0 0;font-size:19px;color:rgba(10,10,10,.68);max-width:640px;">
+        Every architectural decision, RFC compliance check, benchmark test, and security threat model is documented in the repository:
+      </p>
+
+      <div style="margin-top:48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1px;background:rgba(10,10,10,.14);border:1px solid rgba(10,10,10,.14);">
+        <a class="doclink" href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener noreferrer" style="display:flex;flex-direction:column;gap:8px;padding:28px 28px 30px;">
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <span style="font-size:19px;font-weight:700;letter-spacing:-0.01em;">System Architecture</span>
+            <span class="docarrow" style="color:#d9150d;font-size:20px;font-weight:700;">→</span>
+          </span>
+          <span style="font-size:15.5px;opacity:.72;line-height:1.5;">Single-task lwIP socket worker, label-walking binary search, and RFC 1035 wire compliance.</span>
+        </a>
+
+        <a class="doclink" href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/PERFORMANCE.md" target="_blank" rel="noopener noreferrer" style="display:flex;flex-direction:column;gap:8px;padding:28px 28px 30px;">
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <span style="font-size:19px;font-weight:700;letter-spacing:-0.01em;">Performance & Benchmarks</span>
+            <span class="docarrow" style="color:#d9150d;font-size:20px;font-weight:700;">→</span>
+          </span>
+          <span style="font-size:15.5px;opacity:.72;line-height:1.5;">Measured 114.9 QPS throughput, 6.62ms p50 latency, and 0.00% false positive score.</span>
+        </a>
+
+        <a class="doclink" href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/SECURITY.md" target="_blank" rel="noopener noreferrer" style="display:flex;flex-direction:column;gap:8px;padding:28px 28px 30px;">
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <span style="font-size:19px;font-weight:700;letter-spacing:-0.01em;">Security & Threat Model</span>
+            <span class="docarrow" style="color:#d9150d;font-size:20px;font-weight:700;">→</span>
+          </span>
+          <span style="font-size:15.5px;opacity:.72;line-height:1.5;">Buffer overflow defenses, transaction ID spoofing mitigations, and credential isolation.</span>
+        </a>
+
+        <a class="doclink" href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/NETWORK_SETUP.md" target="_blank" rel="noopener noreferrer" style="display:flex;flex-direction:column;gap:8px;padding:28px 28px 30px;">
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <span style="font-size:19px;font-weight:700;letter-spacing:-0.01em;">Router & Network Setup</span>
+            <span class="docarrow" style="color:#d9150d;font-size:20px;font-weight:700;">→</span>
+          </span>
+          <span style="font-size:15.5px;opacity:.72;line-height:1.5;">Router DHCP server integration, Windows/Android/iOS setup, and private DNS (DoH) tips.</span>
+        </a>
+
+        <a class="doclink" href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/HARDWARE.md" target="_blank" rel="noopener noreferrer" style="display:flex;flex-direction:column;gap:8px;padding:28px 28px 30px;">
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <span style="font-size:19px;font-weight:700;letter-spacing:-0.01em;">Hardware Profiles & Pinouts</span>
+            <span class="docarrow" style="color:#d9150d;font-size:20px;font-weight:700;">→</span>
+          </span>
+          <span style="font-size:15.5px;opacity:.72;line-height:1.5;">Pinouts, power characteristics, and dual-tier matrix (ESP32-C3 SRAM vs ESP32-S3 PSRAM).</span>
+        </a>
+
+        <a class="doclink" href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/RECOVERY.md" target="_blank" rel="noopener noreferrer" style="display:flex;flex-direction:column;gap:8px;padding:28px 28px 30px;">
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <span style="font-size:19px;font-weight:700;letter-spacing:-0.01em;">Failsafe & Recovery Guide</span>
+            <span class="docarrow" style="color:#d9150d;font-size:20px;font-weight:700;">→</span>
+          </span>
+          <span style="font-size:15.5px;opacity:.72;line-height:1.5;">Automated SoftAP fallback portal, flash snapshot rollback, and USB serial recovery.</span>
+        </a>
+
+        <a class="doclink" href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/DEVELOPMENT.md" target="_blank" rel="noopener noreferrer" style="display:flex;flex-direction:column;gap:8px;padding:28px 28px 30px;">
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <span style="font-size:19px;font-weight:700;letter-spacing:-0.01em;">Developer & Build Guide</span>
+            <span class="docarrow" style="color:#d9150d;font-size:20px;font-weight:700;">→</span>
+          </span>
+          <span style="font-size:15.5px;opacity:.72;line-height:1.5;">Arduino CLI compilation flags, partition schemes, and benchmark testing commands.</span>
+        </a>
+
+        <a class="doclink" href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/COMPETITIVE_ANALYSIS.md" target="_blank" rel="noopener noreferrer" style="display:flex;flex-direction:column;gap:8px;padding:28px 28px 30px;">
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <span style="font-size:19px;font-weight:700;letter-spacing:-0.01em;">Competitive Analysis</span>
+            <span class="docarrow" style="color:#d9150d;font-size:20px;font-weight:700;">→</span>
+          </span>
+          <span style="font-size:15.5px;opacity:.72;line-height:1.5;">Detailed comparison vs Pi-hole, AdGuard Home, and microcontroller adblock projects.</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer style="background:#0a0a0a;color:#fff;">
+    <div style="max-width:1200px;margin:0 auto;padding:72px 24px 48px;">
+      <div style="display:flex;flex-wrap:wrap;gap:40px 64px;justify-content:space-between;">
+        <div style="flex:1 1 320px;min-width:0;max-width:480px;">
+          <div style="font-weight:800;font-size:28px;letter-spacing:-0.03em;display:flex;align-items:center;gap:10px;">
+            <span>🛡️</span> Hero's Walls
+          </div>
+          <p style="margin:14px 0 0;color:rgba(255,255,255,.7);font-size:16.5px;line-height:1.6;">
+            A privacy-first DNS ad and tracker blocker for ESP32 microcontrollers.<br>
+            Designed & Engineered by <a href="https://heroxportfolio.netlify.app/" target="_blank" rel="noopener noreferrer" style="color:#ff4338;text-decoration:none;font-weight:600;border-bottom:1px dashed #ff4338;">Hero.X (Portfolio ↗)</a>.
+          </p>
+        </div>
+
+        <nav style="display:flex;flex-wrap:wrap;gap:24px 48px;align-content:flex-start;">
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:4px;">Project</div>
+            <a class="footlink" href="https://github.com/iamHeroXD/heros-walls" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+            <a class="footlink" href="https://github.com/iamHeroXD/heros-walls/issues" target="_blank" rel="noopener noreferrer">Issue Tracker</a>
+            <a class="footlink" href="https://github.com/iamHeroXD/heros-walls/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a>
+            <a class="footlink" href="https://heroxportfolio.netlify.app/" target="_blank" rel="noopener noreferrer" style="color:#ff8a80;">Creator Portfolio ↗</a>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:4px;">Community</div>
+            <a class="footlink" href="https://github.com/iamHeroXD/heros-walls/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">Contributing</a>
+            <a class="footlink" href="https://github.com/iamHeroXD/heros-walls/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer">Code of Conduct</a>
+            <a class="footlink" href="https://github.com/iamHeroXD/heros-walls/blob/main/docs/SECURITY.md" target="_blank" rel="noopener noreferrer">Security Policy</a>
+          </div>
+        </nav>
+      </div>
+
+      <div style="margin-top:56px;padding-top:28px;border-top:1px solid rgba(255,255,255,.14);display:flex;flex-wrap:wrap;gap:12px 32px;justify-content:space-between;font-size:14px;color:rgba(255,255,255,.62);">
+        <span>Released under the GNU Affero General Public License (AGPL-3.0).</span>
+        <span>Built upon <a href="https://github.com/s60sc/ESP32_AdBlocker" target="_blank" rel="noopener noreferrer" style="color:#fff;">ESP32_AdBlocker</a> by s60sc and dateno1.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll progress bar
+    window.addEventListener('scroll', () => {
+      const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      document.getElementById('progressBar').style.width = scrolled + '%';
+    });
+  </script>
+</body>
+</html>
