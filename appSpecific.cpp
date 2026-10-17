@@ -1211,8 +1211,10 @@ void appSpecificWsHandler(const char* wsMsg) {
 char* buildAppJsonString(bool filter) {
   // build app specific part of json string
   char* p = jsonBuff + 1;
-  p += sprintf(p, "\"blockCnt\":\"%lu\",\"allowCnt\":\"%lu\",\"zzzAdblockOn\":\"%d\",",
-               blockCnt, allowCnt, adBlockOn ? 1 : 0);
+  p += sprintf(p, "\"blockCnt\":\"%lu\",\"allowCnt\":\"%lu\",\"zzzAdblockOn\":\"%d\",\"localIP\":\"%s\",\"apIP\":\"%s\",",
+               blockCnt, allowCnt, adBlockOn ? 1 : 0,
+               WiFi.localIP().toString().c_str(),
+               WiFi.softAPIP().toString().c_str());
   return p;
 }
 

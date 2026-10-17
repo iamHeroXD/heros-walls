@@ -672,6 +672,69 @@ const char* heroDashboard_html = R"~(
       font-family: var(--mono);
     }
 
+    /* Modal Overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 16px;
+    }
+    .modal-card {
+      background: #121214;
+      border: 1px solid #3f3f46;
+      border-radius: 8px;
+      padding: 28px;
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+    }
+    .modal-badge {
+      display: inline-block;
+      background: rgba(220,38,38,0.15);
+      color: #ff6b6b;
+      border: 1px solid rgba(220,38,38,0.4);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-family: var(--mono);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .code-box {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 4px;
+      padding: 10px 14px;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: #fafafa;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 8px;
+      overflow-x: auto;
+    }
+    .copy-btn {
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.7rem;
+      font-family: var(--mono);
+      flex-shrink: 0;
+    }
+    .copy-btn:hover { background: #3f3f46; }
+
     /* Minimalist Footer */
     .nav-links {
       display: flex;
@@ -741,13 +804,48 @@ const char* heroDashboard_html = R"~(
       </div>
     </div>
 
+    <!-- Active DNS Protection Setup (Crucial Guide) -->
+    <div class="card" style="border-left: 3px solid var(--accent-red);">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div class="card-title" style="color:#ffffff; margin:0;">🛡️ Activate Ad Blocking on Your Devices</div>
+        <span id="heroIpPill" class="badge" style="font-size:0.75rem;">IP: <span id="heroIpVal">Loading...</span></span>
+      </div>
+      <p class="stat-sub" style="margin-top:8px;">
+        DNS ad blockers only block ads when your device sends its DNS queries to Hero's Walls. Select your setup below:
+      </p>
+
+      <div style="margin-top:14px; background:#141416; border:1px solid #27272a; border-radius:6px; padding:14px;">
+        <div style="font-weight:600; font-size:0.85rem; color:#ffffff; margin-bottom:4px;">1. Windows PC / Laptop (1-Click Command)</div>
+        <div style="font-size:0.78rem; color:#a1a1aa;">Open PowerShell as Administrator and run this command:</div>
+        <div class="code-box">
+          <span id="winCmd">netsh interface ip set dns "Wi-Fi" static 192.168.4.1</span>
+          <button class="copy-btn" onclick="copyWinCmd()">Copy</button>
+        </div>
+        <div style="font-size:0.72rem; color:#71717a; margin-top:4px;">To revert back to automatic DNS later: <code>netsh interface ip set dns "Wi-Fi" dhcp</code></div>
+      </div>
+
+      <div style="margin-top:12px; background:#141416; border:1px solid #27272a; border-radius:6px; padding:14px;">
+        <div style="font-weight:600; font-size:0.85rem; color:#ffffff; margin-bottom:4px;">2. Mobile Hotspot (Poco / Android / iPhone)</div>
+        <div style="font-size:0.78rem; color:#a1a1aa; line-height:1.5;">
+          Mobile phone hotspots cannot change DNS automatically. On your laptop or phone, open <b>Wi-Fi Settings &rarr; Edit Network &rarr; IP Settings: Static &rarr; DNS 1:</b> enter <code id="heroIpDns" style="color:#ff8a80;">Hero's Walls IP</code>.
+        </div>
+      </div>
+
+      <div style="margin-top:12px; background:#141416; border:1px solid #27272a; border-radius:6px; padding:14px;">
+        <div style="font-weight:600; font-size:0.85rem; color:#ffffff; margin-bottom:4px;">3. Home Wi-Fi Router (Whole-Home Auto Blocking)</div>
+        <div style="font-size:0.78rem; color:#a1a1aa; line-height:1.5;">
+          In your router admin settings (e.g. <code>192.168.1.1</code>), set <b>Primary DNS</b> to Hero's Walls IP. Every TV, phone, and computer at home will be protected automatically with zero setup!
+        </div>
+      </div>
+    </div>
+
     <!-- Wi-Fi Network Setup -->
     <div class="card">
       <div class="card-title">Wi-Fi Network Configuration</div>
-      <p class="stat-sub">The device reconnects to your network on boot. To configure a new network, enter credentials below:</p>
-      <input type="text" id="wifiSsid" class="input-box" placeholder="Network SSID (e.g. Home_WiFi)">
+      <p class="stat-sub">Connect Hero's Walls to your home Wi-Fi or mobile hotspot (supports 2.4 GHz channels 1–14 worldwide):</p>
+      <input type="text" id="wifiSsid" class="input-box" placeholder="Network SSID (e.g. POCO C55 or Home_WiFi)">
       <input type="password" id="wifiPass" class="input-box" placeholder="Network Password">
-      <button class="btn" onclick="saveWifiCredentials()">Save & Connect</button>
+      <button id="saveWifiBtn" class="btn" onclick="saveWifiCredentials()">Save & Connect</button>
       <div id="wifiMsg" class="status-msg"></div>
     </div>
 
@@ -781,16 +879,52 @@ const char* heroDashboard_html = R"~(
       <a href="/control?displayLog=1" target="_blank">Live Logs</a>
       <span style="color: var(--text-dim);">&bull;</span>
       <a href="/web?OTA.htm">Firmware OTA</a>
+      <span style="color: var(--text-dim);">&bull;</span>
+      <a href="http://heroswalls.local" target="_blank">mDNS Link</a>
+    </div>
+  </div>
+
+  <!-- Reconnection Modal Overlay -->
+  <div id="wifiModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-badge">✅ Settings Saved Successfully</div>
+      <h2 style="font-size:1.25rem; font-weight:700; margin:14px 0 6px 0; color:#fff;">Joining <span id="modalSsid" style="color:var(--accent-red);"></span></h2>
+      <p style="color:var(--text-muted); font-size:0.85rem; line-height:1.5;">Hero's Walls is rebooting and connecting to your network.</p>
+      
+      <div style="background:#18181b; border:1px solid #27272a; border-radius:6px; padding:16px; margin:16px 0; text-align:left;">
+        <div style="font-weight:600; font-size:0.85rem; margin-bottom:8px; color:#fff;">Next Steps:</div>
+        <ol style="padding-left:18px; font-size:0.82rem; color:#d4d4d8; line-height:1.6;">
+          <li><b>Wait:</b> The setup Wi-Fi (<code>ESP32_AdBlocker_...</code>) will turn off in a few seconds.</li>
+          <li><b>Reconnect:</b> Connect your phone or laptop back to <b id="modalSsid2" style="color:#ff8a80;"></b>.</li>
+          <li><b>Open Dashboard:</b> Go to <a href="http://heroswalls.local" target="_blank" style="color:#ff8a80; font-weight:600; text-decoration:underline;">http://heroswalls.local</a> to view live blocked ads.</li>
+        </ol>
+      </div>
+
+      <div style="height:6px; background:#27272a; border-radius:3px; overflow:hidden; margin:16px 0 8px 0;">
+        <div id="modalBar" style="height:100%; width:0%; background:var(--accent-red); transition:width 1s linear;"></div>
+      </div>
+      <div id="modalTimer" style="font-size:0.75rem; color:var(--text-muted); font-family:var(--mono);">Rebooting in 12s...</div>
     </div>
   </div>
 
   <script>
+    let activeDeviceIp = window.location.hostname;
+
     function updateStats() {
       fetch('/status')
         .then(r => r.json())
         .then(d => {
           if (d.blockCnt !== undefined) document.getElementById('statBlocked').innerText = d.blockCnt;
           if (d.allowCnt !== undefined) document.getElementById('statAllowed').innerText = d.allowCnt;
+          if (d.localIP && d.localIP !== "0.0.0.0") {
+            activeDeviceIp = d.localIP;
+          } else if (d.apIP && d.apIP !== "0.0.0.0") {
+            activeDeviceIp = d.apIP;
+          }
+          document.getElementById('heroIpVal').innerText = activeDeviceIp;
+          document.getElementById('heroIpDns').innerText = activeDeviceIp;
+          document.getElementById('winCmd').innerText = 'netsh interface ip set dns "Wi-Fi" static ' + activeDeviceIp;
+
           if (d.zzzAdblockOn !== undefined) {
             const on = d.zzzAdblockOn == "1" || d.zzzAdblockOn == true;
             document.getElementById('adblockToggle').checked = on;
@@ -810,33 +944,65 @@ const char* heroDashboard_html = R"~(
 
     function toggleAdblock(enabled) {
       const val = enabled ? "1" : "0";
-      fetch('/control?zzzAdblockOn=' + val)
-        .then(() => {
-          updateStats();
-        });
+      fetch('/control?zzzAdblockOn=' + val).then(() => updateStats());
+    }
+
+    function copyWinCmd() {
+      const cmd = document.getElementById('winCmd').innerText;
+      navigator.clipboard.writeText(cmd).then(() => {
+        alert('Copied to clipboard!\n\nRun this in PowerShell as Administrator to activate ad blocking on your laptop.');
+      });
     }
 
     function saveWifiCredentials() {
       const ssid = document.getElementById('wifiSsid').value.trim();
       const pass = document.getElementById('wifiPass').value.trim();
       const msg = document.getElementById('wifiMsg');
+      const btn = document.getElementById('saveWifiBtn');
       if (!ssid) {
         msg.style.color = 'var(--accent-red)';
         msg.innerText = 'Please enter an SSID';
         return;
       }
+      btn.disabled = true;
+      btn.innerText = 'Saving...';
       msg.style.color = '#ffffff';
-      msg.innerText = 'Saving credentials and restarting ESP32...';
+      msg.innerText = 'Storing credentials to flash memory...';
+
+      // Save credentials first
       fetch('/control?ST_SSID=' + encodeURIComponent(ssid))
         .then(() => fetch('/control?ST_Pass=' + encodeURIComponent(pass)))
         .then(() => fetch('/control?save=1'))
-        .then(() => fetch('/control?reset=1'))
         .then(() => {
-          msg.innerText = 'Rebooting! Reconnect to ' + ssid + ' once online.';
+          // Open Modal
+          document.getElementById('modalSsid').innerText = ssid;
+          document.getElementById('modalSsid2').innerText = ssid;
+          document.getElementById('wifiModal').style.display = 'flex';
+
+          // Trigger restart
+          fetch('/control?reset=1').catch(() => {});
+
+          // Animate countdown
+          let sec = 12;
+          const bar = document.getElementById('modalBar');
+          const timer = document.getElementById('modalTimer');
+          const iv = setInterval(() => {
+            sec--;
+            const pct = Math.round(((12 - sec) / 12) * 100);
+            bar.style.width = pct + '%';
+            timer.innerText = 'Restarting in ' + sec + 's...';
+            if (sec <= 0) {
+              clearInterval(iv);
+              timer.innerHTML = 'Hero\'s Walls is online! Connect to <b>' + ssid + '</b> and open <a href="http://heroswalls.local" style="color:#ff8a80;font-weight:600;">http://heroswalls.local</a>';
+            }
+          }, 1000);
         })
         .catch(() => {
-          msg.style.color = 'var(--accent-red)';
-          msg.innerText = 'Request sent. Device is rebooting.';
+          // Fallback if connection dropped early
+          document.getElementById('modalSsid').innerText = ssid;
+          document.getElementById('modalSsid2').innerText = ssid;
+          document.getElementById('wifiModal').style.display = 'flex';
+          fetch('/control?reset=1').catch(() => {});
         });
     }
 

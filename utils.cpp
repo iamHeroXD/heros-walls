@@ -34,6 +34,7 @@ const char* storageType = xstr(STORAGE);
 /************************** Network (WiFi/Ethernet) **************************/
 
 #include <esp_task_wdt.h>
+#include <esp_wifi.h>
  
 /** Do not hard code anything below here unless you know what you are doing **/
 /** Use the web interface to configure wifi settings **/
@@ -99,12 +100,13 @@ static void setupMdnsHost() {
   char mdnsName[MAX_IP_LEN]; // max mdns host name length
   snprintf(mdnsName, MAX_IP_LEN, "%.*s", MAX_IP_LEN - 1, hostName);
   MDNS.end();
-  if (MDNS.begin(mdnsName)) {
+  // Register friendly name "heroswalls" so users can browse to http://heroswalls.local
+  if (MDNS.begin("heroswalls") || MDNS.begin(mdnsName)) {
     // Add service to MDNS
     useHttps ? MDNS.addService("https", "tcp", HTTPS_PORT) : MDNS.addService("http", "tcp", HTTP_PORT);
     MDNS.addService("ws", "udp", 83);
     MDNS.addService("ftp", "tcp", 21);    
-    LOG_INF("mDNS service: http%s://%s.local", useHttps ? "s" : "", mdnsName);
+    LOG_INF("mDNS service active: http%s://heroswalls.local", useHttps ? "s" : "");
   } else LOG_WRN("mDNS host: %s Failed", mdnsName);
   debugMemory("setupMdnsHost");
 }
@@ -164,7 +166,7 @@ static void onNetEvent(arduino_event_id_t event, arduino_event_info_t info) {
     case ARDUINO_EVENT_WIFI_STA_LOST_IP: LOG_INF("Wifi Station lost IP"); break;
     case ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED: break;
     case ARDUINO_EVENT_WIFI_STA_CONNECTED: LOG_INF("WiFi Station connection to %s, using hostname: %s", ST_SSID, hostName); break;
-    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED: LOG_INF("WiFi Station disconnected"); break;
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED: LOG_INF("WiFi Station disconnected, reason: %u", (unsigned int)info.wifi_sta_disconnected.reason); break;
     case ARDUINO_EVENT_WIFI_AP_STACONNECTED: LOG_INF("WiFi AP client connection"); break;
     case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED: LOG_INF("WiFi AP client disconnection"); break;
     case ARDUINO_EVENT_WIFI_AP_PROBEREQRECVED: break;
@@ -234,6 +236,15 @@ static void setWifiSTA() {
   } else LOG_INF("Wifi Station IP from DHCP");
   WiFi.STA.enableIPv6(USE_IP6); 
   WiFi.STA.begin();
+  wifi_country_t country = {
+    .cc = "01",
+    .schan = 1,
+    .nchan = 14,
+    .max_tx_power = 20,
+    .policy = WIFI_COUNTRY_POLICY_MANUAL
+  };
+  esp_err_t cErr = esp_wifi_set_country(&country);
+  LOG_INF("Wi-Fi regulatory country channels 1-14: %s", esp_err_to_name(cErr));
   WiFi.STA.connect(ST_SSID, ST_Pass);
   debugMemory("setWifiSTA");
 }
@@ -342,10 +353,20 @@ static bool startWifi(bool firstcall = true) { // firstcall: true on initial inv
   // Apply one-time Wi-Fi hardware configuration and suppress default behaviors.
   if (firstcall) {
     WiFi.mode(WIFI_AP_STA); // Enable concurrent Station and Access Point modes.
+    // Configure Wi-Fi regulatory domain to scan all 14 channels (channels 1-13 worldwide + 14)
+    // This allows connecting to mobile hotspots and routers on channels 12 and 13 (e.g. Poco/Xiaomi/Redmi).
+    wifi_country_t country = {
+      .cc = "01", // World-safe regulatory domain
+      .schan = 1,
+      .nchan = 14, // Enable all 2.4 GHz channels 1-14
+      .max_tx_power = 20,
+      .policy = WIFI_COUNTRY_POLICY_MANUAL
+    };
+    esp_wifi_set_country(&country);
     WiFi.setSleep(true); // Setup modem sleep to configure association latency(Options: true - for energy efficiency, false - for continuous power supply.
     WiFi.setTxPower(WIFI_POWER_15dBm); // Set the Wi-Fi transmit power(range vs energy efficiency). Options: WIFI_POWER_19_5dBm, WIFI_POWER_15dBm, WIFI_POWER_8_5dBm, WIFI_POWER_2dBm, etc ...(see the documentation)
     WiFi.persistent(false); // Disable NVS flash writes for Wi-Fi credentials.
-    WiFi.STA.setAutoReconnect(false); // Disable auto-reconnect to manage connection lifecycle manually.
+    WiFi.STA.setAutoReconnect(true); // Enable auto-reconnect to manage connection lifecycle.
     WiFi.AP.clear();
     WiFi.AP.end(); // Terminate residual AP state from previous runs.
     WiFi.STA.setHostname(hostName); // Assign custom hostname for DHCP/DNS resolution.
@@ -381,38 +402,20 @@ static bool startWifi(bool firstcall = true) { // firstcall: true on initial inv
     setWifiSTA(); // Apply Station configuration (SSID/password).
     wlStat = WL_NO_SSID_AVAIL; // Reset status; reconnection is deferred to background ping task.
     
-    // Poll connection status with a 5-second timeout to prevent indefinite blocking.
+    // Poll connection status with a 15-second timeout to allow full channel scan and authentication.
     if (strlen(ST_SSID) > 0) {
-      if (wifiEventGroup != NULL) {
-        EventBits_t bits = 0;
-        uint32_t startAttemptTime = millis();
-        // Wait for connection or failure with a 100ms loop to preserve progress logging.
-        while (!(bits & (WIFI_CONNECTED_BIT | WIFI_FAIL_BIT)) && (millis() - startAttemptTime < 5000)) {
-          bits = xEventGroupWaitBits(
-            wifiEventGroup,
-            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-            pdFALSE, // Do not clear bits on exit
-            pdFALSE, // Wait for any bit
-            pdMS_TO_TICKS(100)
-          );
-          if (!(bits & (WIFI_CONNECTED_BIT | WIFI_FAIL_BIT))) {
-            LOG_SEND(".");
-          }
-        }
-        
-        if (bits & WIFI_CONNECTED_BIT) {
-          wlStat = WL_CONNECTED;
-        } else {
-          wlStat = WiFi.STA.status(); // Get exact status if failed or timeout
-        }
-      } else {
-        // Fallback to polling if event group creation failed
-        uint32_t startAttemptTime = millis();
+      uint32_t startAttemptTime = millis();
+      wlStat = WiFi.STA.status();
+      while (wlStat != WL_CONNECTED && (millis() - startAttemptTime < 15000)) {
+        LOG_SEND(".");
+        vTaskDelay(pdMS_TO_TICKS(150));
         wlStat = WiFi.STA.status();
-        while (wlStat != WL_CONNECTED && (millis() - startAttemptTime < 5000)) {
-          LOG_SEND(".");
-          vTaskDelay(pdMS_TO_TICKS(100)); // Yield to prevent task watchdog timeout.
-          wlStat = WiFi.STA.status();
+        if (wifiEventGroup != NULL) {
+          EventBits_t bits = xEventGroupGetBits(wifiEventGroup);
+          if (bits & WIFI_CONNECTED_BIT) {
+            wlStat = WL_CONNECTED;
+            break;
+          }
         }
       }
     }
@@ -483,14 +486,10 @@ static bool startWifi(bool firstcall = true) { // firstcall: true on initial inv
     setWifiAP(); // Configure and start Access Point for provisioning or fallback access.
   }
   
-  // Start mDNS only on the ESP32-S3 and only if the Station obtained a valid IP address.
-#if CONFIG_IDF_TARGET_ESP32S3
-  if (netMode == 0) {
-    if ((uint32_t)WiFi.localIP() != 0) {
-      setupMdnsHost();
-    }
+  // Start mDNS service universally on all boards (ESP32-C3 and ESP32-S3)
+  if ((uint32_t)WiFi.localIP() != 0 || (uint32_t)WiFi.softAPIP() != 0) {
+    setupMdnsHost();
   }
-#endif
 
   // Ensure background ping task is active for connection monitoring.
   if (pingHandle == NULL) {
